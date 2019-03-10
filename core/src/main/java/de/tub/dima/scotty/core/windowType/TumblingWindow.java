@@ -36,7 +36,7 @@ public class TumblingWindow implements ContextFreeWindow {
         while (lastWatermark + twSize < currentWatermark) {
             long windowStart = lastWatermark - (lastWatermark % twSize);
             long windowEnd = windowStart + twSize;
-            aggregateWindows.trigger(windowStart, windowEnd);
+            aggregateWindows.trigger(windowStart, windowEnd, measure);
             lastWatermark = windowEnd;
         }
     }

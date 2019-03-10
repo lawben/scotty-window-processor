@@ -8,10 +8,18 @@ import java.util.*;
 
 public class AggregateState<InputType> implements Serializable {
     private final List<AggregateValueState<InputType,Object,Object>> aggregateValueStates;
+    private final StateFactory stateFactory;
+    private final List<AggregateFunction> windowFunctions;
 
     public AggregateState(StateFactory stateFactory, List<AggregateFunction> windowFunctions) {
 
+        this.stateFactory = stateFactory;
+        this.windowFunctions = windowFunctions;
         this.aggregateValueStates = new ArrayList<>();
+        init();
+    }
+
+    private void init(){
         for (int i = 0; i < windowFunctions.size(); i++) {
             this.aggregateValueStates.add(new AggregateValueState<>(stateFactory.createValueState(), windowFunctions.get(i)));
         }
@@ -23,6 +31,10 @@ public class AggregateState<InputType> implements Serializable {
         }
     }
 
+    public void clear() {
+        this.aggregateValueStates.clear();
+        init();
+    }
 
 
     public void merge(AggregateState<InputType> otherAggState) {
@@ -64,4 +76,5 @@ public class AggregateState<InputType> implements Serializable {
         return "AggregateState{" +
                 "values=" + aggregateValueStates + '}';
     }
+
 }

@@ -8,9 +8,11 @@ import java.util.List;
 public interface AggregateWindow<T> extends Serializable {
 
 
-    public long getStartTs();
+    public WindowMeasure getMeasure();
 
-    public long getEndTs();
+    public long getStart();
+
+    public long getEnd();
 
     public List<T> getAggValue();
 

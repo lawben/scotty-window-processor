@@ -44,6 +44,23 @@ public class TumblingWindowOperatorTest {
     }
 
     @Test
+    public void inOrderTestCount() {
+        slicingWindowOperator.addWindowFunction((ReduceAggregateFunction<Integer>) (currentAggregate, element) -> currentAggregate + element);
+        slicingWindowOperator.addWindowAssigner(new TumblingWindow(WindowMeasure.Count, 3));
+        slicingWindowOperator.processElement(1, 1);
+        slicingWindowOperator.processElement(1, 19);
+        slicingWindowOperator.processElement(1, 29);
+        slicingWindowOperator.processElement(2, 39);
+        slicingWindowOperator.processElement(2, 49);
+        slicingWindowOperator.processElement(2, 50);
+        slicingWindowOperator.processElement(1, 51);
+
+        List<AggregateWindow> resultWindows = slicingWindowOperator.processWatermark(22);
+        Assert.assertEquals(3, resultWindows.get(0).getAggValue().get(0));
+        Assert.assertEquals(6, resultWindows.get(1).getAggValue().get(0));
+    }
+
+    @Test
     public void inOrderTest2() {
         slicingWindowOperator.addWindowFunction((ReduceAggregateFunction<Integer>) (currentAggregate, element) -> currentAggregate + element);
         slicingWindowOperator.addWindowAssigner(new TumblingWindow(WindowMeasure.Time, 10));

@@ -1,6 +1,7 @@
 package de.tub.dima.scotty.slicing.slice;
 
 import de.tub.dima.scotty.slicing.state.*;
+import sun.reflect.generics.reflectiveObjects.*;
 
 public interface Slice<InputType, ValueType> {
 
@@ -61,6 +62,22 @@ public interface Slice<InputType, ValueType> {
      * @param ts      timestamp of the element
      */
     void addElement(InputType element, long ts);
+
+    default void removeElement(InputType element){
+        throw new NotImplementedException();
+    };
+
+    /**
+     * Element count of first element
+     * @return
+     */
+    long getCStart();
+
+    /**
+     * Element count of last element
+     * @return
+     */
+    long getCLast();
 
 
     interface Type {

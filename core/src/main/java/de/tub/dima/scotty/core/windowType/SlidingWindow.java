@@ -1,7 +1,6 @@
 package de.tub.dima.scotty.core.windowType;
 
 import de.tub.dima.scotty.core.*;
-import de.tub.dima.scotty.core.*;
 
 public class SlidingWindow implements ContextFreeWindow {
 
@@ -49,7 +48,7 @@ public class SlidingWindow implements ContextFreeWindow {
         while (lastWatermark + swSize < currentWatermark) {
             long windowStart = lastWatermark - (lastWatermark % swSlice);
             long windowEnd = windowStart + swSize;
-            collector.trigger(windowStart, windowEnd);
+            collector.trigger(windowStart, windowEnd, measure);
             lastWatermark = windowStart + swSlice;
         }
     }

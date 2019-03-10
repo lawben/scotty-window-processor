@@ -58,8 +58,10 @@ public interface AggregationStore<InputType> {
      * @param aggregateWindows definition of the requested window
      * @param minTs startTimestamp of the earliest window.
      * @param maxTs endTimestamp of the latest window
+     * @param minCount
+     * @param maxCount
      */
-    void aggregate(WindowManager.AggregationWindowCollector aggregateWindows, long minTs, long maxTs);
+    void aggregate(WindowManager.AggregationWindowCollector aggregateWindows, long minTs, long maxTs, long minCount, long maxCount);
 
     /**
      * Add a new Slice at a specific index
