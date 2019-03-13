@@ -224,10 +224,10 @@ public class TumblingWindowOperatorTest {
         slicingWindowOperator.processElement(3, 52);
 
         List<AggregateWindow> resultWindows = slicingWindowOperator.processWatermark(55);
-        Assert.assertEquals(3, resultWindows.get(0).getAggValues().get(0));
-        Assert.assertEquals(5, resultWindows.get(1).getAggValues().get(0));
+        Assert.assertEquals(4, resultWindows.get(0).getAggValues().get(0));
+        Assert.assertEquals(4, resultWindows.get(1).getAggValues().get(0));
         Assert.assertEquals(6, resultWindows.get(2).getAggValues().get(0));
-        Assert.assertEquals(6, resultWindows.get(3).getAggValues().get(0));
+        Assert.assertEquals(7, resultWindows.get(3).getAggValues().get(0));
     }
 
     @Test
