@@ -72,7 +72,7 @@ Then you can use the library in your maven project.
 <dependency> 
  <groupId>de.tub.dima.scotty</groupId>
  <artifactId>flink-connector</artifactId>
- <version>0.1</version>
+ <version>0.3</version>
 </dependency>
 ```
 
