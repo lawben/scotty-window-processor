@@ -6,6 +6,7 @@ import de.tub.dima.scotty.core.windowType.*;
 import static de.tub.dima.scotty.core.windowType.WindowMeasure.*;
 import de.tub.dima.scotty.core.windowType.windowContext.*;
 import de.tub.dima.scotty.slicing.aggregationstore.*;
+import de.tub.dima.scotty.slicing.slice.*;
 import de.tub.dima.scotty.slicing.state.*;
 import de.tub.dima.scotty.state.*;
 import org.jetbrains.annotations.*;
@@ -60,9 +61,8 @@ public class WindowManager {
             this.aggregationStore.aggregate(windows, minTs, maxTs, minCount, maxCount);
         }
         this.lastWatermark = watermarkTs;
-        this.lastCount = currentCount;
+        this.lastCount = currentCount-5;
         return windows.aggregationStores;
-
     }
 
     private void assignContextAwareWindows(long watermarkTs, AggregationWindowCollector windows) {
@@ -72,15 +72,21 @@ public class WindowManager {
     }
 
     private void assignContextFreeWindows(long watermarkTs, WindowCollector windowCollector) {
-
         for (ContextFreeWindow window : contextFreeWindows) {
             if (window.getWindowMeasure() == Time)
                 window.triggerWindows(windowCollector, lastWatermark, watermarkTs);
             else if (window.getWindowMeasure() == Count) {
-                window.triggerWindows(windowCollector, lastCount, currentCount);
+                int sliceIndex = this.aggregationStore.findSliceIndexByTimestamp(watermarkTs);
+                Slice slice = this.aggregationStore.getSlice(sliceIndex);
+                if(slice.getTLast() >= watermarkTs)
+                    slice = this.aggregationStore.getSlice(sliceIndex-1);
+                long cend = slice.getCLast();
+                window.triggerWindows(windowCollector, lastCount, cend+1);
             }
         }
     }
+
+
 
 
     public void addWindowAssigner(Window window) {

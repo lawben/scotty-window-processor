@@ -74,6 +74,15 @@ public class SliceManager<InputType> {
 
             int indexOfSlice = this.aggregationStore.findSliceIndexByTimestamp(ts);
             this.aggregationStore.insertValueToSlice(indexOfSlice, element, ts);
+            if(this.windowManager.hasCountMeasure()){
+                // shift count in slices
+                for(; indexOfSlice<= this.aggregationStore.size()-2; indexOfSlice++) {
+                    LazySlice<InputType, ?> lazySlice = (LazySlice<InputType, ?>) this.aggregationStore.getSlice(indexOfSlice);
+                    StreamRecord<InputType> lastElement = lazySlice.dropLastElement();
+                    LazySlice<InputType, ?> nextSlice = (LazySlice<InputType, ?>) this.aggregationStore.getSlice(indexOfSlice + 1);
+                    nextSlice.prependElement(lastElement);
+                }
+            }
         }
     }
 

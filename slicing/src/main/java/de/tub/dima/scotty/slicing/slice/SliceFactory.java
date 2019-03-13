@@ -15,9 +15,14 @@ public class SliceFactory<InputType, ValueType> {
     }
 
     public Slice<InputType, ValueType> createSlice(long startTs, long maxValue, long startCount, long endCount, Slice.Type type) {
-        return new EagerSlice<>(stateFactory, windowManager, startTs, maxValue, startCount, endCount, type);
+        if(!windowManager.hasCountMeasure()){
+            return new EagerSlice<>(stateFactory, windowManager, startTs, maxValue, startCount, endCount, type);
+        }
+        return new LazySlice<>(stateFactory, windowManager, startTs, maxValue, startCount, endCount, type);
     }
     public Slice<InputType, ValueType> createSlice(long startTs, long maxValue, Slice.Type type) {
-        return new EagerSlice<>(stateFactory, windowManager, startTs, maxValue, windowManager.getCurrentCount(), windowManager.getCurrentCount(), type);
+        return createSlice(startTs, maxValue, windowManager.getCurrentCount(), windowManager.getCurrentCount(), type);
     }
+
+
 }

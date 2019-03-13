@@ -5,7 +5,6 @@ import de.tub.dima.scotty.core.windowFunction.*;
 import de.tub.dima.scotty.core.windowType.*;
 import de.tub.dima.scotty.slicing.*;
 import de.tub.dima.scotty.state.memory.*;
-import de.tub.dima.scotty.core.*;
 import org.junit.*;
 
 import java.util.*;
@@ -34,16 +33,16 @@ public class SlidingWindowOperatorTest {
 
         List<AggregateWindow> resultWindows = slicingWindowOperator.processWatermark(22);
 
-        Assert.assertEquals(1, resultWindows.get(0).getAggValue().get(0));
-        Assert.assertNull(resultWindows.get(1).getAggValue().get(0));
-        Assert.assertEquals(2, resultWindows.get(2).getAggValue().get(0));
+        Assert.assertEquals(1, resultWindows.get(0).getAggValues().get(0));
+        Assert.assertNull(resultWindows.get(1).getAggValues().get(0));
+        Assert.assertEquals(2, resultWindows.get(2).getAggValues().get(0));
 
         resultWindows = slicingWindowOperator.processWatermark(55);
-        Assert.assertEquals(3, resultWindows.get(0).getAggValue().get(0));
-        Assert.assertEquals(3, resultWindows.get(1).getAggValue().get(0));
-        Assert.assertEquals(4, resultWindows.get(2).getAggValue().get(0));
-        Assert.assertEquals(4, resultWindows.get(3).getAggValue().get(0));
-        Assert.assertEquals(5, resultWindows.get(4).getAggValue().get(0));
+        Assert.assertEquals(3, resultWindows.get(0).getAggValues().get(0));
+        Assert.assertEquals(3, resultWindows.get(1).getAggValues().get(0));
+        Assert.assertEquals(4, resultWindows.get(2).getAggValues().get(0));
+        Assert.assertEquals(4, resultWindows.get(3).getAggValues().get(0));
+        Assert.assertEquals(5, resultWindows.get(4).getAggValues().get(0));
     }
 
     @Test
@@ -58,16 +57,16 @@ public class SlidingWindowOperatorTest {
 
         List<AggregateWindow> resultWindows = slicingWindowOperator.processWatermark(22);
 
-        Assert.assertEquals(3, resultWindows.get(0).getAggValue().get(0));
-        Assert.assertNull(resultWindows.get(1).getAggValue().get(0));
-        Assert.assertNull(resultWindows.get(2).getAggValue().get(0));
+        Assert.assertEquals(3, resultWindows.get(0).getAggValues().get(0));
+        Assert.assertNull(resultWindows.get(1).getAggValues().get(0));
+        Assert.assertNull(resultWindows.get(2).getAggValues().get(0));
 
         resultWindows = slicingWindowOperator.processWatermark(55);
-        Assert.assertEquals(3, resultWindows.get(0).getAggValue().get(0));
-        Assert.assertEquals(4, resultWindows.get(1).getAggValue().get(0));
-        Assert.assertEquals(4, resultWindows.get(2).getAggValue().get(0));
-        Assert.assertEquals(5, resultWindows.get(3).getAggValue().get(0));
-        Assert.assertEquals(5, resultWindows.get(4).getAggValue().get(0));
+        Assert.assertEquals(3, resultWindows.get(0).getAggValues().get(0));
+        Assert.assertEquals(4, resultWindows.get(1).getAggValues().get(0));
+        Assert.assertEquals(4, resultWindows.get(2).getAggValues().get(0));
+        Assert.assertEquals(5, resultWindows.get(3).getAggValues().get(0));
+        Assert.assertEquals(5, resultWindows.get(4).getAggValues().get(0));
     }
 
 
@@ -85,18 +84,18 @@ public class SlidingWindowOperatorTest {
 
         List<AggregateWindow> resultWindows = slicingWindowOperator.processWatermark(22);
 
-        Assert.assertEquals(1, resultWindows.get(0).getAggValue().get(0));
-        Assert.assertEquals(null, resultWindows.get(1).getAggValue().get(0));
-        Assert.assertEquals(2, resultWindows.get(2).getAggValue().get(0));
-        Assert.assertEquals(3, resultWindows.get(3).getAggValue().get(0));
+        Assert.assertEquals(1, resultWindows.get(0).getAggValues().get(0));
+        Assert.assertEquals(null, resultWindows.get(1).getAggValues().get(0));
+        Assert.assertEquals(2, resultWindows.get(2).getAggValues().get(0));
+        Assert.assertEquals(3, resultWindows.get(3).getAggValues().get(0));
 
         resultWindows = slicingWindowOperator.processWatermark(55);
-        Assert.assertEquals(3, resultWindows.get(0).getAggValue().get(0));
-        Assert.assertEquals(3, resultWindows.get(1).getAggValue().get(0));
-        Assert.assertEquals(4, resultWindows.get(2).getAggValue().get(0));
-        Assert.assertEquals(4, resultWindows.get(3).getAggValue().get(0));
-        Assert.assertEquals(5, resultWindows.get(4).getAggValue().get(0));
-        Assert.assertEquals(7, resultWindows.get(5).getAggValue().get(0));
+        Assert.assertEquals(3, resultWindows.get(0).getAggValues().get(0));
+        Assert.assertEquals(3, resultWindows.get(1).getAggValues().get(0));
+        Assert.assertEquals(4, resultWindows.get(2).getAggValues().get(0));
+        Assert.assertEquals(4, resultWindows.get(3).getAggValues().get(0));
+        Assert.assertEquals(5, resultWindows.get(4).getAggValues().get(0));
+        Assert.assertEquals(7, resultWindows.get(5).getAggValues().get(0));
     }
 
     @Test
@@ -114,18 +113,18 @@ public class SlidingWindowOperatorTest {
 
         List<AggregateWindow> resultWindows = slicingWindowOperator.processWatermark(22);
 
-        Assert.assertEquals(1, resultWindows.get(0).getAggValue().get(0));
-        Assert.assertEquals(null, resultWindows.get(1).getAggValue().get(0));
-        Assert.assertEquals(2, resultWindows.get(2).getAggValue().get(0));
-        Assert.assertEquals(3, resultWindows.get(3).getAggValue().get(0));
+        Assert.assertEquals(1, resultWindows.get(0).getAggValues().get(0));
+        Assert.assertEquals(null, resultWindows.get(1).getAggValues().get(0));
+        Assert.assertEquals(2, resultWindows.get(2).getAggValues().get(0));
+        Assert.assertEquals(3, resultWindows.get(3).getAggValues().get(0));
 
         resultWindows = slicingWindowOperator.processWatermark(55);
-        Assert.assertEquals(3, resultWindows.get(0).getAggValue().get(0));
-        Assert.assertEquals(3, resultWindows.get(1).getAggValue().get(0));
-        Assert.assertEquals(4, resultWindows.get(2).getAggValue().get(0));
-        Assert.assertEquals(4, resultWindows.get(3).getAggValue().get(0));
-        Assert.assertEquals(5, resultWindows.get(4).getAggValue().get(0));
-        Assert.assertEquals(7, resultWindows.get(5).getAggValue().get(0));
+        Assert.assertEquals(3, resultWindows.get(0).getAggValues().get(0));
+        Assert.assertEquals(3, resultWindows.get(1).getAggValues().get(0));
+        Assert.assertEquals(4, resultWindows.get(2).getAggValues().get(0));
+        Assert.assertEquals(4, resultWindows.get(3).getAggValues().get(0));
+        Assert.assertEquals(5, resultWindows.get(4).getAggValues().get(0));
+        Assert.assertEquals(7, resultWindows.get(5).getAggValues().get(0));
     }
 
     @Test
@@ -139,7 +138,7 @@ public class SlidingWindowOperatorTest {
         List<AggregateWindow> resultWindows = slicingWindowOperator.processWatermark(22);
 
 
-        Assert.assertEquals(3, resultWindows.get(0).getAggValue().get(0));
+        Assert.assertEquals(3, resultWindows.get(0).getAggValues().get(0));
 
         slicingWindowOperator.addWindowAssigner(new SlidingWindow(WindowMeasure.Time, 10,5));
 
@@ -150,12 +149,12 @@ public class SlidingWindowOperatorTest {
 
 
         resultWindows = slicingWindowOperator.processWatermark(55);
-        Assert.assertEquals(7, resultWindows.get(0).getAggValue().get(0));
-        Assert.assertEquals(3, resultWindows.get(1).getAggValue().get(0));
-        Assert.assertEquals(3, resultWindows.get(2).getAggValue().get(0));
-        Assert.assertEquals(4, resultWindows.get(3).getAggValue().get(0));
-        Assert.assertEquals(4, resultWindows.get(4).getAggValue().get(0));
-        Assert.assertEquals(5, resultWindows.get(5).getAggValue().get(0));
+        Assert.assertEquals(7, resultWindows.get(0).getAggValues().get(0));
+        Assert.assertEquals(3, resultWindows.get(1).getAggValues().get(0));
+        Assert.assertEquals(3, resultWindows.get(2).getAggValues().get(0));
+        Assert.assertEquals(4, resultWindows.get(3).getAggValues().get(0));
+        Assert.assertEquals(4, resultWindows.get(4).getAggValues().get(0));
+        Assert.assertEquals(5, resultWindows.get(5).getAggValues().get(0));
     }
 
 
@@ -174,16 +173,16 @@ public class SlidingWindowOperatorTest {
 
         List<AggregateWindow> resultWindows = slicingWindowOperator.processWatermark(22);
 
-        Assert.assertEquals(1, resultWindows.get(0).getAggValue().get(0));
-        Assert.assertNull(resultWindows.get(1).getAggValue().get(0));
-        Assert.assertNull(resultWindows.get(2).getAggValue().get(0));
+        Assert.assertEquals(1, resultWindows.get(0).getAggValues().get(0));
+        Assert.assertNull(resultWindows.get(1).getAggValues().get(0));
+        Assert.assertNull(resultWindows.get(2).getAggValues().get(0));
 
         resultWindows = slicingWindowOperator.processWatermark(55);
-        Assert.assertEquals(3, resultWindows.get(0).getAggValue().get(0));
-        Assert.assertEquals(2, resultWindows.get(1).getAggValue().get(0));
-        Assert.assertEquals(1, resultWindows.get(2).getAggValue().get(0));
-        Assert.assertNull( resultWindows.get(3).getAggValue().get(0));
-        Assert.assertEquals(1, resultWindows.get(4).getAggValue().get(0));
+        Assert.assertEquals(3, resultWindows.get(0).getAggValues().get(0));
+        Assert.assertEquals(2, resultWindows.get(1).getAggValues().get(0));
+        Assert.assertEquals(1, resultWindows.get(2).getAggValues().get(0));
+        Assert.assertNull( resultWindows.get(3).getAggValues().get(0));
+        Assert.assertEquals(1, resultWindows.get(4).getAggValues().get(0));
     }
 
 

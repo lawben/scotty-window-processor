@@ -31,7 +31,7 @@ public class AggregationStoreBenchmark {
                 return partialAggregate1 + partialAggregate2;
             }
         };
-        this.aggregationState = new AggregateState(memoryStateFactory, Collections.singletonList(wf));
+        this.aggregationState = new AggregateState(memoryStateFactory, Collections.singletonList(wf), null);
         this.aggregationStateInline  = new AggregationStateInline(memoryStateFactory);
     }
 

@@ -36,7 +36,9 @@ public class StreamSlicer {
     public void determineSlices(final long te) {
         if (this.windowManager.hasCountMeasure()) {
             if (this.min_next_edge_count == Long.MIN_VALUE || windowManager.getCurrentCount() == this.min_next_edge_count) {
-                sliceManager.appendSlice(te, new Slice.Fixed());
+                if(maxEventTime == Long.MIN_VALUE)
+                    maxEventTime = te;
+                sliceManager.appendSlice(maxEventTime, new Slice.Fixed());
                 this.min_next_edge_count = calculateNextFixedEdgeCount();
             }
         }

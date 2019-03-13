@@ -1,10 +1,8 @@
 package de.tub.dima.scotty.flinkconnector.demo;
 
-import de.tub.dima.scotty.core.*;
 import de.tub.dima.scotty.core.windowType.*;
 import de.tub.dima.scotty.flinkconnector.*;
 import de.tub.dima.scotty.flinkconnector.demo.windowFunctions.*;
-import org.apache.flink.api.common.functions.*;
 import org.apache.flink.api.java.tuple.*;
 import org.apache.flink.streaming.api.*;
 import org.apache.flink.streaming.api.datastream.*;
@@ -28,7 +26,7 @@ public class FlinkQuantileDemo implements Serializable {
         stream
                 .keyBy(0)
                 .process(windowOperator)
-                .map(x -> x.getAggValue().get(0).f1)
+                .map(x -> x.getAggValues().get(0).f1)
                 .print();
 
         sev.execute("demo");

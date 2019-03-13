@@ -20,6 +20,8 @@ public interface AggregationStore<InputType> {
      */
     int findSliceIndexByTimestamp(long ts);
 
+    int findSliceIndexByCount(long count);
+
     /**
      * Returns slice for a given index or @{@link IndexOutOfBoundsException}
      *

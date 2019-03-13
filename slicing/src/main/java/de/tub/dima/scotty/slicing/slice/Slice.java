@@ -1,7 +1,6 @@
 package de.tub.dima.scotty.slicing.slice;
 
 import de.tub.dima.scotty.slicing.state.*;
-import sun.reflect.generics.reflectiveObjects.*;
 
 public interface Slice<InputType, ValueType> {
 
@@ -64,7 +63,7 @@ public interface Slice<InputType, ValueType> {
     void addElement(InputType element, long ts);
 
     default void removeElement(InputType element){
-        throw new NotImplementedException();
+
     };
 
     /**

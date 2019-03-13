@@ -10,21 +10,28 @@ import java.util.*;
 
 public class AggregateWindowState implements AggregateWindow {
 
-    private final long startTs;
+    private final long start;
     private final long endTs;
     private final WindowMeasure measure;
-
-    private AggregateState windowState;
+    private final AggregateState windowState;
 
     public AggregateWindowState(long startTs, long endTs, WindowMeasure measure, StateFactory stateFactory, List<AggregateFunction> windowFunctionList) {
-        this.startTs = startTs;
+        this.start = startTs;
         this.endTs = endTs;
         this.windowState = new AggregateState(stateFactory, windowFunctionList);
         this.measure = measure;
     }
 
+    public boolean containsSlice(Slice currentSlice) {
+        if (measure == WindowMeasure.Time) {
+            return this.getStart() <= currentSlice.getTStart() && (this.getEnd() > currentSlice.getTLast());
+        } else {
+            return this.getStart() <= currentSlice.getCStart() && (this.getEnd() >= currentSlice.getCLast());
+        }
+    }
+
     public long getStart() {
-        return startTs;
+        return start;
     }
 
     public long getEnd() {
@@ -32,7 +39,7 @@ public class AggregateWindowState implements AggregateWindow {
     }
 
     @Override
-    public List getAggValue() {
+    public List getAggValues() {
         return windowState.getValues();
     }
 
@@ -40,40 +47,33 @@ public class AggregateWindowState implements AggregateWindow {
         this.windowState.merge(aggregationState);
     }
 
+    public WindowMeasure getMeasure() {
+        return measure;
+    }
+
+
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         AggregateWindowState that = (AggregateWindowState) o;
-        return startTs == that.startTs &&
+        return start == that.start &&
                 endTs == that.endTs &&
                 Objects.equals(windowState, that.windowState);
     }
 
     @Override
     public int hashCode() {
-
-        return Objects.hash(startTs, endTs, windowState);
+        return Objects.hash(start, endTs, windowState);
     }
 
     @Override
     public String toString() {
-        return "AggregateWindowState{" +
-                "startTs=" + startTs +
-                ", endTs=" + endTs +
-                ", windowState=" + windowState +
-                '}';
-    }
-
-    public WindowMeasure getMeasure() {
-        return measure;
-    }
-
-    public boolean containsSlice(Slice currentSlice) {
-        if (measure == WindowMeasure.Time) {
-            return this.getStart() <= currentSlice.getTStart() && (this.getEnd() > currentSlice.getTLast());
-        }else{
-            return this.getStart() <= currentSlice.getCStart() && (this.getEnd() >= currentSlice.getCLast());
-        }
+        return "WindowResult(" +
+                measure.toString() + ","+
+                start + "-" + endTs +
+                "," + windowState +
+                ')';
     }
 }

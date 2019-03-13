@@ -8,7 +8,7 @@ public abstract class AbstractSlice<InputType, ValueType> implements Slice<Input
     private Type type;
 
     private long tLast;
-    private long tFirst;
+    private long tFirst = Long.MAX_VALUE;
 
     private long cStart;
     private long cLast;
@@ -17,6 +17,7 @@ public abstract class AbstractSlice<InputType, ValueType> implements Slice<Input
         this.type = type;
         this.tStart = startTs;
         this.tEnd = endTs;
+        this.tLast = startTs;
         this.cLast = cLast;
         this.cStart = cStart;
     }
@@ -79,14 +80,33 @@ public abstract class AbstractSlice<InputType, ValueType> implements Slice<Input
         this.type = type;
     }
 
+
+    public void setTLast(long tLast) {
+        this.tLast = tLast;
+    }
+
+    public void setTFirst(long tFirst) {
+        this.tFirst = tFirst;
+    }
+
+    public void setCStart(long cStart) {
+        this.cStart = cStart;
+    }
+
+    public void setCLast(long cLast) {
+        this.cLast = cLast;
+    }
+
     @Override
     public String toString() {
         return "Slice{" +
                 "tStart=" + tStart +
                 ", tEnd=" + tEnd +
-                ", measure=" + type +
                 ", tLast=" + tLast +
                 ", tFirst=" + tFirst +
+                ", cFirst=" + cStart +
+                ", cLast=" + cLast +
+                ", measure=" + type +
                 '}';
     }
 
@@ -97,4 +117,6 @@ public abstract class AbstractSlice<InputType, ValueType> implements Slice<Input
     public long getCLast() {
         return cLast;
     }
+
+
 }

@@ -34,6 +34,7 @@ public class LazyAggregateStore<InputType> implements AggregationStore<InputType
     }
 
 
+    @Override
     public int findSliceIndexByCount(long count) {
         for (int i = size() - 1; i >= 0; i--) {
             Slice<InputType, ?> currentSlice = this.getSlice(i);

@@ -14,6 +14,6 @@ public interface AggregateWindow<T> extends Serializable {
 
     public long getEnd();
 
-    public List<T> getAggValue();
+    public List<T> getAggValues();
 
 }
