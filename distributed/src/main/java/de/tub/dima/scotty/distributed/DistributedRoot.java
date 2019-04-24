@@ -48,13 +48,20 @@ public class DistributedRoot<InputType> extends SlicingWindowOperator<InputType>
     @Override
     public List<AggregateWindow> processWatermark(long watermarkTs) {
         List<AggregateWindow> aggregatedWindows = new ArrayList<>();
+        List<WindowAggregateId> toRemove = new ArrayList<>();
 
         receivedWindowPreAggregates.forEach((windowId, counter) -> {
             if (windowId.getWindowStartTimestamp() < watermarkTs) {
                 assert counter.longValue() == childNodes.size();
                 aggregatedWindows.add(new DistributedAggregateWindowState<>(
                         windowId.getWindowStartTimestamp(), windowAggregates.get(windowId)));
+                toRemove.add(windowId);
             }
+        });
+
+        toRemove.forEach((id) -> {
+            receivedWindowPreAggregates.remove(id);
+            windowAggregates.remove(id);
         });
 
         return aggregatedWindows;
