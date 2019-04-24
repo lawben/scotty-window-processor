@@ -20,12 +20,12 @@ import java.util.List;
  */
 public class SlicingWindowOperator<InputType> implements WindowOperator<InputType> {
 
-    private final StateFactory stateFactory;
+    protected final StateFactory stateFactory;
 
-    private final WindowManager windowManager;
-    private final SliceFactory<Integer,Integer> sliceFactory;
-    private final SliceManager<InputType> sliceManager;
-    private final StreamSlicer slicer;
+    protected final WindowManager windowManager;
+    protected final SliceFactory<Integer,Integer> sliceFactory;
+    protected final SliceManager<InputType> sliceManager;
+    protected final StreamSlicer slicer;
 
     public SlicingWindowOperator(StateFactory stateFactory) {
         AggregationStore<InputType> aggregationStore = new LazyAggregateStore<>();

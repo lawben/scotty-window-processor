@@ -18,4 +18,5 @@ public interface AggregateWindow<T> extends Serializable {
 
     public boolean hasValue();
 
+    WindowAggregateId getWindowAggregateId();
 }

@@ -114,8 +114,10 @@ public class LazyAggregateStoreTest {
 
 
         List<AggregateWindowState> window = new ArrayList<>();
-        window.add(new AggregateWindowState(10, 40, WindowMeasure.Time, stateFactory, windowManager.getAggregations()));
-        window.add(new AggregateWindowState(10, 20, WindowMeasure.Time, stateFactory, windowManager.getAggregations()));
+        window.add(new AggregateWindowState(10, 40, WindowMeasure.Time, stateFactory, windowManager.getAggregations(),
+                null));
+        window.add(new AggregateWindowState(10, 20, WindowMeasure.Time, stateFactory, windowManager.getAggregations(),
+                null));
 
 
     }
