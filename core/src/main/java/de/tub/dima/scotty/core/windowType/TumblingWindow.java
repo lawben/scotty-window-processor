@@ -10,11 +10,23 @@ public class TumblingWindow implements ContextFreeWindow {
      * Size of the tumbling window
      */
     private final long size;
+    private final int windowId;
 
     public TumblingWindow(WindowMeasure measure, long size) {
+        this(measure, size, -1);
+    }
+
+    public TumblingWindow(WindowMeasure measure, long size, int windowId) {
         this.measure = measure;
         this.size = size;
+        this.windowId = windowId;
     }
+
+    @Override
+    public int getWindowId() {
+        return this.windowId;
+    }
+
 
     public long getSize() {
         return size;
@@ -34,6 +46,8 @@ public class TumblingWindow implements ContextFreeWindow {
     public void triggerWindows(WindowCollector aggregateWindows, long lastWatermark, long currentWatermark) {
         long lastStart = lastWatermark - ((lastWatermark + size) % size);
         for (long windowStart = lastStart; windowStart + size <= currentWatermark; windowStart += size) {
+            WindowAggregateId windowAggregateId = new WindowAggregateId(this.getWindowId(), windowStart);
+            aggregateWindows.setWindowAggregateId(windowAggregateId);
             aggregateWindows.trigger(windowStart, windowStart + size, measure);
         }
     }
