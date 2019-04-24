@@ -202,7 +202,6 @@ public class DistributedWindowTest {
 
         // Second Window
         List<AggregateWindow> rootWindows2 = root.processWatermark(20);
-        Assert.assertEquals(rootWindows2.get(0).getAggValues().get(0), 21);
-        Assert.assertEquals(rootWindows2.get(1).getAggValues().get(0), 81);
+        Assert.assertEquals(rootWindows2.get(0).getAggValues().get(0), 81);
     }
 }
