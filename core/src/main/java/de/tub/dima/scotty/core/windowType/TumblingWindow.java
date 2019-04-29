@@ -1,7 +1,6 @@
 package de.tub.dima.scotty.core.windowType;
 
 import de.tub.dima.scotty.core.*;
-import de.tub.dima.scotty.core.*;
 
 public class TumblingWindow implements ContextFreeWindow {
 
@@ -10,20 +9,20 @@ public class TumblingWindow implements ContextFreeWindow {
      * Size of the tumbling window
      */
     private final long size;
-    private final int windowId;
+    private final long windowId;
 
     public TumblingWindow(WindowMeasure measure, long size) {
         this(measure, size, -1);
     }
 
-    public TumblingWindow(WindowMeasure measure, long size, int windowId) {
+    public TumblingWindow(WindowMeasure measure, long size, long windowId) {
         this.measure = measure;
         this.size = size;
         this.windowId = windowId;
     }
 
     @Override
-    public int getWindowId() {
+    public long getWindowId() {
         return this.windowId;
     }
 

@@ -1,11 +1,11 @@
 package de.tub.dima.scotty.core.windowType;
 
 import de.tub.dima.scotty.core.*;
-import de.tub.dima.scotty.core.*;
 
 public class SlidingWindow implements ContextFreeWindow {
 
     private final WindowMeasure measure;
+    private final long windowId;
 
     /**
      * Size of the sliding window
@@ -18,9 +18,14 @@ public class SlidingWindow implements ContextFreeWindow {
     private final long slide;
 
     public SlidingWindow(WindowMeasure measure, long size, long slide) {
+        this(measure, size, slide, -1);
+    }
+
+    public SlidingWindow(WindowMeasure measure, long size, long slide, long windowId) {
         this.measure = measure;
         this.size = size;
         this.slide = slide;
+        this.windowId = windowId;
     }
 
     public long getSize() {
