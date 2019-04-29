@@ -92,7 +92,7 @@ public class DistributedRoot implements Runnable {
         ZMQ.Poller children = this.context.createPoller(1);
         children.register(childReceiver, Poller.POLLIN);
 
-        String[] windowStrings = {"TUMBLING,1000,1", "TUMBLING,2000,2"};
+        String[] windowStrings = {"TUMBLING,1000,1", "SLIDING,10000,5000,3"};
         String completeWindowString = String.join("\n", windowStrings);
 
         int numChildrenRegistered = 0;

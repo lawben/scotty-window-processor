@@ -3,6 +3,7 @@ package de.tub.dima.scotty.distributed;
 import de.tub.dima.scotty.core.AggregateWindow;
 import de.tub.dima.scotty.core.WindowAggregateId;
 import de.tub.dima.scotty.core.windowFunction.ReduceAggregateFunction;
+import de.tub.dima.scotty.core.windowType.SlidingWindow;
 import de.tub.dima.scotty.core.windowType.TumblingWindow;
 import de.tub.dima.scotty.core.windowType.Window;
 import de.tub.dima.scotty.core.windowType.WindowMeasure;
@@ -166,12 +167,21 @@ public class DistributedChild implements Runnable {
         String[] windowRows = windowString.split("\n");
         for (String windowRow : windowRows) {
             String[] windowDetails = windowRow.split(",");
-            assert windowDetails.length >= 2;
+            assert windowDetails.length > 0;
             switch (windowDetails[0]) {
                 case "TUMBLING": {
+                    assert windowDetails.length >= 2;
                     final int size = Integer.parseInt(windowDetails[1]);
                     final int windowId = windowDetails.length == 3 ? Integer.parseInt(windowDetails[2]) : -1;
                     windows.add(new TumblingWindow(WindowMeasure.Time, size, windowId));
+                    break;
+                }
+                case "SLIDING": {
+                    assert windowDetails.length >= 3;
+                    final int size = Integer.parseInt(windowDetails[1]);
+                    final int slide = Integer.parseInt(windowDetails[2]);
+                    final int windowId = windowDetails.length == 4 ? Integer.parseInt(windowDetails[3]) : -1;
+                    windows.add(new SlidingWindow(WindowMeasure.Time, size, slide, windowId));
                     break;
                 }
                 default: {
