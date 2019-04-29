@@ -1,12 +1,17 @@
 package de.tub.dima.scotty.distributed;
 
 import de.tub.dima.scotty.core.AggregateWindow;
+import de.tub.dima.scotty.core.WindowAggregateId;
 import de.tub.dima.scotty.core.windowFunction.ReduceAggregateFunction;
 import de.tub.dima.scotty.core.windowType.TumblingWindow;
 import de.tub.dima.scotty.core.windowType.Window;
 import de.tub.dima.scotty.core.windowType.WindowMeasure;
 import de.tub.dima.scotty.state.StateFactory;
 import de.tub.dima.scotty.state.memory.MemoryStateFactory;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutput;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -28,15 +33,14 @@ public class DistributedChild implements Runnable {
     // Slicing related
     private final DistributedChildSlicer<Integer> slicer;
 
-    private static final long WATERMARK_DURATION_MS = 2000;
+    private static final long WATERMARK_DURATION_MS = 1000;
     private static final long NUM_RECORDS_TO_PROCESS = 300;
 
-    public DistributedChild(String rootIp, int rootControllerPort, int rootWindowPort) {
+    public DistributedChild(String rootIp, int rootControllerPort, int rootWindowPort, int childId) {
         this.rootIp = rootIp;
         this.rootControllerPort = rootControllerPort;
         this.rootWindowPort = rootWindowPort;
-
-        this.childId = new Random().nextInt(1000);
+        this.childId = childId;
 
         StateFactory stateFactory = new MemoryStateFactory();
         // TODO: add root in correct way
@@ -116,12 +120,26 @@ public class DistributedChild implements Runnable {
     private void sendPreAggregatedWindowsToRoot(List<AggregateWindow> preAggregatedWindows) {
         if (this.windowPusher == null) {
             this.windowPusher = this.context.createSocket(SocketType.PUSH);
-            this.windowPusher.connect("tcp://" + this.rootIp + ":" + this.rootWindowPort);
+            this.windowPusher.connect(DistributedUtils.buildTcpUrl(this.rootIp, this.rootWindowPort));
         }
 
         for (AggregateWindow preAggregatedWindow : preAggregatedWindows) {
-            // TODO: do this correctly
-            this.windowPusher.send("[" + this.childId + "] " + preAggregatedWindow.toString());
+            WindowAggregateId windowId = preAggregatedWindow.getWindowAggregateId();
+
+            // Convert partial aggregation result to byte array
+            List aggValues = preAggregatedWindow.getAggValues();
+            Object partialAggregate = aggValues.isEmpty() ? null : aggValues.get(0);
+            byte[] partialAggregateBytes = DistributedUtils.objectToBytes(partialAggregate);
+
+            // Order:
+            // Integer      childId
+            // Integer,Long WindowAggregateId
+            // Long,Long    window start, window end
+            // Byte[]       raw bytes of partial aggregate
+            this.windowPusher.sendMore(String.valueOf(this.childId));
+            this.windowPusher.sendMore(windowId.getWindowId() + "," + windowId.getWindowStartTimestamp());
+            this.windowPusher.sendMore(preAggregatedWindow.getStart() + "," + preAggregatedWindow.getEnd());
+            this.windowPusher.send(partialAggregateBytes);
         }
     }
 
@@ -132,22 +150,22 @@ public class DistributedChild implements Runnable {
 
     private List<Window> getWindowsFromRoot() {
         ZMQ.Socket controlClient = this.context.createSocket(SocketType.REQ);
-        controlClient.connect("tcp://" + this.rootIp + ":" + this.rootControllerPort);
+        controlClient.connect(DistributedUtils.buildTcpUrl(this.rootIp, this.rootControllerPort));
 
         controlClient.send("[" + this.childId + "] I am a new child.");
 
         byte[] response = controlClient.recv();
         String windowString = new String(response, ZMQ.CHARSET);
-        System.out.println("[" + this.childId + "] Received: [" + windowString + "]");
+        System.out.println("[" + this.childId + "] Received: [" + windowString.replace("\n", ";") + "]");
         return this.createWindowsFromString(windowString);
     }
 
     private List<Window> createWindowsFromString(String windowString) {
         ArrayList<Window> windows = new ArrayList<>();
 
-        String[] windowRows = windowString.split("n");
+        String[] windowRows = windowString.split("\n");
         for (String windowRow : windowRows) {
-            String[] windowDetails = windowString.split(",");
+            String[] windowDetails = windowRow.split(",");
             assert windowDetails.length >= 2;
             switch (windowDetails[0]) {
                 case "TUMBLING": {
@@ -161,7 +179,7 @@ public class DistributedChild implements Runnable {
                 }
 
             }
-
+            System.out.println("Adding window: " + windows.get(windows.size() - 1));
         }
 
         return windows;

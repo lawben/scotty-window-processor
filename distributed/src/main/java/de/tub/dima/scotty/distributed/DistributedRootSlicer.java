@@ -28,10 +28,6 @@ public class DistributedRootSlicer<InputType> extends SlicingWindowOperator<Inpu
         this.childNodes = new ArrayList<>();
     }
 
-    public void addChildNode(SlicingWindowOperator<InputType> childNode) {
-        this.childNodes.add(childNode);
-    }
-
     public void processPreAggregate(InputType preAggregate, WindowAggregateId windowAggregateId) {
         synchronized (this) {
             receivedWindowPreAggregates.computeIfAbsent(windowAggregateId, k -> new LongAdder()).increment();
