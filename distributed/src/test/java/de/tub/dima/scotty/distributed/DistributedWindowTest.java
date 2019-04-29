@@ -84,10 +84,10 @@ public class DistributedWindowTest {
     public void distributedRootTest() {
         MemoryStateFactory stateFactory = new MemoryStateFactory();
 
-        DistributedRoot<Integer> root = new DistributedRoot<>(stateFactory);
+        DistributedRootSlicer<Integer> root = new DistributedRootSlicer<>(stateFactory);
 
-        DistributedChild<Integer> leftChild = new DistributedChild<>(stateFactory, root);
-        DistributedChild<Integer> rightChild = new DistributedChild<>(stateFactory, root);
+        DistributedChildSlicer<Integer> leftChild = new DistributedChildSlicer<>(stateFactory);
+        DistributedChildSlicer<Integer> rightChild = new DistributedChildSlicer<>(stateFactory);
 
         final ReduceAggregateFunction<Integer> SUM = Integer::sum;
 
@@ -130,10 +130,10 @@ public class DistributedWindowTest {
     public void distributedParallelRootTest() {
         MemoryStateFactory stateFactory = new MemoryStateFactory();
 
-        DistributedRoot<Integer> root = new DistributedRoot<>(stateFactory);
+        DistributedRootSlicer<Integer> root = new DistributedRootSlicer<>(stateFactory);
 
-        DistributedChild<Integer> leftChild = new DistributedChild<>(stateFactory, root);
-        DistributedChild<Integer> rightChild = new DistributedChild<>(stateFactory, root);
+        DistributedChildSlicer<Integer> leftChild = new DistributedChildSlicer<>(stateFactory);
+        DistributedChildSlicer<Integer> rightChild = new DistributedChildSlicer<>(stateFactory);
 
         final ReduceAggregateFunction<Integer> SUM = Integer::sum;
 
