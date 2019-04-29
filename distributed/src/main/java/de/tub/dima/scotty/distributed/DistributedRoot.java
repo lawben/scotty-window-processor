@@ -1,87 +1,75 @@
 package de.tub.dima.scotty.distributed;
 
-import de.tub.dima.scotty.core.AggregateWindow;
-import de.tub.dima.scotty.core.WindowAggregateId;
-import de.tub.dima.scotty.core.windowFunction.AggregateFunction;
-import de.tub.dima.scotty.core.windowType.Window;
-import de.tub.dima.scotty.slicing.SlicingWindowOperator;
-import de.tub.dima.scotty.slicing.state.AggregateState;
-import de.tub.dima.scotty.slicing.state.DistributedAggregateWindowState;
 import de.tub.dima.scotty.state.StateFactory;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.atomic.LongAdder;
+import de.tub.dima.scotty.state.memory.MemoryStateFactory;
+import org.zeromq.SocketType;
+import org.zeromq.ZContext;
+import org.zeromq.ZMQ;
+import org.zeromq.ZMQ.Poller;
 
-public class DistributedRoot<InputType> extends SlicingWindowOperator<InputType> {
+public class DistributedRoot implements Runnable {
+    // Network related
+    private final ZContext context;
+    private final int controllerPort;
+    private final int windowPort;
+    private ZMQ.Socket windowPuller;
 
-    protected final List<SlicingWindowOperator<InputType>> childNodes;
-    protected final Map<WindowAggregateId, LongAdder> receivedWindowPreAggregates = new HashMap<>();
-    protected final Map<WindowAggregateId, AggregateState<InputType>> windowAggregates = new HashMap<>();
+    private static final int NUM_EXPECTED_CHILDREN = 2;
 
+    // Slicing related
+    private final DistributedRootSlicer<Integer> slicer;
 
+    public DistributedRoot(int controllerPort, int windowPort) {
+        this.controllerPort = controllerPort;
+        this.windowPort = windowPort;
 
-    public DistributedRoot(StateFactory stateFactory) {
-        super(stateFactory);
-        this.childNodes = new ArrayList<>();
+        this.context = new ZContext();
+
+        StateFactory stateFactory = new MemoryStateFactory();
+        this.slicer = new DistributedRootSlicer<>(stateFactory);
     }
 
-    public void addChildNode(SlicingWindowOperator<InputType> childNode) {
-        this.childNodes.add(childNode);
+    public void run() {
+        System.out.println("Starting root worker with controller port " + this.controllerPort +
+                " and window port " + this.windowPort);
+
+        // 1. Wait for all children to register (hard-coded for now)
+        this.waitForChildren(NUM_EXPECTED_CHILDREN);
+
+        // 2. wait for pre-aggregated windows
+        this.waitForPreAggregatedWindows();
     }
 
-    public void processPreAggregate(InputType preAggregate, WindowAggregateId windowAggregateId) {
-        synchronized (this) {
-            receivedWindowPreAggregates.computeIfAbsent(windowAggregateId, k -> new LongAdder()).increment();
-            Optional<AggregateState<InputType>> presentAggWindow =
-                    Optional.ofNullable(windowAggregates.putIfAbsent(windowAggregateId,
-                            new AggregateState<>(this.stateFactory, this.windowManager.getAggregations())));
-
-            AggregateState<InputType> aggWindow = presentAggWindow.orElseGet(() -> windowAggregates.get(windowAggregateId));
-            aggWindow.addElement(preAggregate);
+    private void waitForPreAggregatedWindows() {
+        if (this.windowPuller == null) {
+            this.windowPuller = this.context.createSocket(SocketType.PULL);
+            this.windowPuller.bind("tcp://0.0.0.0:" + this.windowPort);
         }
 
+        while (true) {
+            String preAggregatedWindow = this.windowPuller.recvStr();
+            System.out.println("Received pre-aggregatedWindow: " + preAggregatedWindow);
+        }
     }
 
-    @Override
-    public List<AggregateWindow> processWatermark(long watermarkTs) {
-        List<AggregateWindow> aggregatedWindows = new ArrayList<>();
-        List<WindowAggregateId> toRemove = new ArrayList<>();
+    private void waitForChildren(final int numChildren) {
+        ZMQ.Socket childReceiver = this.context.createSocket(SocketType.REP);
+        childReceiver.bind("tcp://0.0.0.0:" + this.controllerPort);
 
-        receivedWindowPreAggregates.forEach((windowId, counter) -> {
-            if (windowId.getWindowStartTimestamp() < watermarkTs) {
-                assert counter.longValue() == childNodes.size();
-                aggregatedWindows.add(new DistributedAggregateWindowState<>(
-                        windowId.getWindowStartTimestamp(), windowAggregates.get(windowId)));
-                toRemove.add(windowId);
+        ZMQ.Poller children = this.context.createPoller(1);
+        children.register(childReceiver, Poller.POLLIN);
+
+        int numChildrenRegistered = 0;
+        while (numChildrenRegistered < numChildren) {
+            children.poll();
+
+            if (children.pollin(0)) {
+                String message = childReceiver.recvStr();
+                System.out.println("Received from child: " + message);
+                childReceiver.send("TUMBLING,1000,1");
+                numChildrenRegistered++;
             }
-        });
-
-        toRemove.forEach((id) -> {
-            receivedWindowPreAggregates.remove(id);
-            windowAggregates.remove(id);
-        });
-
-        return aggregatedWindows;
-    }
-
-    @Override
-    public <Agg, OutputType> void addWindowFunction(AggregateFunction<InputType, Agg, OutputType> windowFunction) {
-        super.addWindowFunction(windowFunction);
-
-        for (SlicingWindowOperator<InputType> child : childNodes) {
-            child.addWindowFunction(windowFunction);
         }
-    }
 
-    @Override
-    public void addWindowAssigner(Window window) {
-        super.addWindowAssigner(window);
-
-        for (SlicingWindowOperator<InputType> child : childNodes) {
-            child.addWindowAssigner(window);
-        }
     }
 }
