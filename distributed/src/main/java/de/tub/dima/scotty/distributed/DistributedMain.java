@@ -1,7 +1,5 @@
 package de.tub.dima.scotty.distributed;
 
-import static java.lang.String.join;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -9,7 +7,8 @@ import java.util.stream.Collectors;
 import org.jetbrains.annotations.NotNull;
 
 public class DistributedMain {
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
+        // good seed: 5051462193220963001
         if (args.length < 6) {
             System.err.println("Not enough arguments!\nUsage: java ... "
                     + "controllerPort "

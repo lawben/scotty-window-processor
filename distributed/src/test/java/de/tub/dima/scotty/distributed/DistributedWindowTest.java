@@ -84,7 +84,7 @@ public class DistributedWindowTest {
     public void distributedRootTest() {
         MemoryStateFactory stateFactory = new MemoryStateFactory();
 
-        DistributedRootSlicer<Integer> root = new DistributedRootSlicer<>(stateFactory);
+        DistributedWindowMerger<Integer> root = new DistributedWindowMerger<>(stateFactory, 2);
 
         DistributedChildSlicer<Integer> leftChild = new DistributedChildSlicer<>(stateFactory);
         DistributedChildSlicer<Integer> rightChild = new DistributedChildSlicer<>(stateFactory);
@@ -130,7 +130,7 @@ public class DistributedWindowTest {
     public void distributedParallelRootTest() {
         MemoryStateFactory stateFactory = new MemoryStateFactory();
 
-        DistributedRootSlicer<Integer> root = new DistributedRootSlicer<>(stateFactory);
+        DistributedWindowMerger<Integer> root = new DistributedWindowMerger<>(stateFactory, 2);
 
         DistributedChildSlicer<Integer> leftChild = new DistributedChildSlicer<>(stateFactory);
         DistributedChildSlicer<Integer> rightChild = new DistributedChildSlicer<>(stateFactory);
