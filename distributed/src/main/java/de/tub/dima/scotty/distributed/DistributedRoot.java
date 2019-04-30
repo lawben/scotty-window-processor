@@ -33,6 +33,7 @@ public class DistributedRoot implements Runnable {
         this.slicer = new DistributedRootSlicer<>(stateFactory);
     }
 
+    @Override
     public void run() {
         System.out.println("Starting root worker with controller port " + this.controllerPort +
                 " and window port " + this.windowPort);
@@ -47,13 +48,13 @@ public class DistributedRoot implements Runnable {
     private void waitForPreAggregatedWindows() {
         if (this.windowPuller == null) {
             this.windowPuller = this.context.createSocket(SocketType.PULL);
-            this.windowPuller.bind(DistributedUtils.buildTcpUrl("0.0.0.0", this.windowPort));
+            this.windowPuller.bind(DistributedUtils.buildLocalTcpUrl(this.windowPort));
         }
 
         ZMQ.Poller preAggregatedWindows = this.context.createPoller(1);
         preAggregatedWindows.register(this.windowPuller, Poller.POLLIN);
 
-        final long pollTimeout = 10 * 1000;
+        final long pollTimeout = 5 * 1000;
         while (!Thread.currentThread().isInterrupted()) {
             if (preAggregatedWindows.poll(pollTimeout) == 0) {
                 // Timed out --> quit
@@ -87,12 +88,12 @@ public class DistributedRoot implements Runnable {
 
     private void waitForChildren(int numChildren) {
         ZMQ.Socket childReceiver = this.context.createSocket(SocketType.REP);
-        childReceiver.bind(DistributedUtils.buildTcpUrl("0.0.0.0", this.controllerPort));
+        childReceiver.bind(DistributedUtils.buildLocalTcpUrl(this.controllerPort));
 
         ZMQ.Poller children = this.context.createPoller(1);
         children.register(childReceiver, Poller.POLLIN);
 
-        String[] windowStrings = {"TUMBLING,1000,1", "SLIDING,10000,5000,3"};
+        String[] windowStrings = {"TUMBLING,1000,1", "SLIDING,5000,2000,2"};
         String completeWindowString = String.join("\n", windowStrings);
 
         int numChildrenRegistered = 0;
@@ -111,8 +112,8 @@ public class DistributedRoot implements Runnable {
     private List<Long> stringToLongs(String rawString) {
         String[] strings = rawString.split(",");
         List<Long> longs = new ArrayList<>(strings.length);
-        for (int i = 0; i < strings.length; i++) {
-            longs.add(Long.valueOf(strings[i]));
+        for (String string : strings) {
+            longs.add(Long.valueOf(string));
         }
         return longs;
     }

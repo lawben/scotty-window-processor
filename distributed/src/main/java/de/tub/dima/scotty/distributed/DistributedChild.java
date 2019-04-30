@@ -19,6 +19,7 @@ import java.util.Random;
 import org.zeromq.SocketType;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
+import org.zeromq.ZMQ.Poller;
 
 public class DistributedChild implements Runnable {
 
@@ -28,19 +29,20 @@ public class DistributedChild implements Runnable {
     private final String rootIp;
     private final int rootControllerPort;
     private final int rootWindowPort;
+    private final int streamInputPort;
     private final ZContext context;
     private ZMQ.Socket windowPusher;
 
     // Slicing related
     private final DistributedChildSlicer<Integer> slicer;
 
-    private static final long WATERMARK_DURATION_MS = 1000;
-    private static final long NUM_RECORDS_TO_PROCESS = 300;
+    private static final long WATERMARK_DURATION_MS = 3000;
 
-    public DistributedChild(String rootIp, int rootControllerPort, int rootWindowPort, int childId) {
+    public DistributedChild(String rootIp, int rootControllerPort, int rootWindowPort, int streamInputPort, int childId) {
         this.rootIp = rootIp;
         this.rootControllerPort = rootControllerPort;
         this.rootWindowPort = rootWindowPort;
+        this.streamInputPort = streamInputPort;
         this.childId = childId;
 
         StateFactory stateFactory = new MemoryStateFactory();
@@ -50,17 +52,17 @@ public class DistributedChild implements Runnable {
         this.context = new ZContext();
     }
 
+    @Override
     public void run() {
-        System.out.println("Starting child worker [" + this.childId +
-                "]. Connecting to root at " + this.rootIp + " with controller port "
-                + this.rootControllerPort + " and window port " + this.rootWindowPort);
+        System.out.println(this.childIdString("Starting child worker. Connecting to root at " + this.rootIp +
+                " with controller port " + this.rootControllerPort + " and window port " + this.rootWindowPort));
 
         // 1. connect to root server
         // 1.1. receive commands from root (i.e. windows, agg. functions, etc.)
         List<Window> windows = this.getWindowsFromRoot();
 
         if (windows.isEmpty()) {
-            throw new RuntimeException("Did not receive any windows from root!");
+            throw new RuntimeException(this.childIdString("Did not receive any windows from root!"));
         }
 
         // TODO: also get this from root
@@ -81,41 +83,48 @@ public class DistributedChild implements Runnable {
     }
 
     private void processStreams() {
-        // TODO: open connection here. Fake it for now.
-        // Should be implemented with PUSH/PULL.
+        ZMQ.Socket streamInput = this.context.createSocket(SocketType.PULL);
+        streamInput.bind(DistributedUtils.buildLocalTcpUrl(this.streamInputPort));
 
-        final long startTime = System.currentTimeMillis();
+        ZMQ.Poller streamPoller = this.context.createPoller(1);
+        streamPoller.register(streamInput, Poller.POLLIN);
+
+        System.out.println(this.childIdString("Waiting for stream data."));
+
+        long currentEventTime = 0;
         long lastWatermark = 0;
-        Random rand = new Random();
+        final long pollTimeout = 3 * 1000;
 
-        int numRecordsProcessed = 0;
-        while (numRecordsProcessed < NUM_RECORDS_TO_PROCESS) {
-            long eventTimestamp = System.currentTimeMillis() - startTime;
-            this.slicer.processElement(rand.nextInt(100), eventTimestamp);
-            numRecordsProcessed++;
-
-            // TODO: obviously remove this in real code.
-            // Wait for 0 to 100 milliseconds until next record.
-            try {
-                Thread.sleep(rand.nextInt(10) * 10);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+        while (!Thread.currentThread().isInterrupted()) {
+            if (streamPoller.poll(pollTimeout) == 0) {
+                System.out.println(this.childIdString("Processed all events."));
+                final long watermarkTimestamp = lastWatermark + WATERMARK_DURATION_MS;
+                List<AggregateWindow> preAggregatedWindows = this.slicer.processWatermark(watermarkTimestamp);
+                this.sendPreAggregatedWindowsToRoot(preAggregatedWindows);
+                System.out.println(this.childIdString("No more data to come. Ending child worker..."));
+                return;
             }
 
-            // If we haven't processed a watermark in 5 seconds, process it.
-            final long watermarkTimestamp = System.currentTimeMillis() - startTime;
-            if (watermarkTimestamp > lastWatermark + WATERMARK_DURATION_MS) {
-                System.out.println("[" + this.childId + "] Processing watermark " + watermarkTimestamp);
+            if (streamPoller.pollin(0)) {
+                int streamId = Integer.parseInt(streamInput.recvStr(ZMQ.DONTWAIT));
+                long eventTimestamp = Long.valueOf(streamInput.recvStr(ZMQ.DONTWAIT));
+                Object eventValue = DistributedUtils.bytesToObject(streamInput.recv(ZMQ.DONTWAIT));
+                this.slicer.processElement((this.slicer.castFromObject(eventValue)), eventTimestamp);
+                currentEventTime = eventTimestamp;
+            }
+
+
+            // If we haven't processed a watermark in WATERMARK_DURATION_MS, process it.
+            final long watermarkTimestamp = lastWatermark + WATERMARK_DURATION_MS;
+            if (currentEventTime >= watermarkTimestamp) {
+                System.out.println(this.childIdString("Processing watermark " + watermarkTimestamp));
                 List<AggregateWindow> preAggregatedWindows = this.slicer.processWatermark(watermarkTimestamp);
                 this.sendPreAggregatedWindowsToRoot(preAggregatedWindows);
                 lastWatermark = watermarkTimestamp;
             }
         }
 
-        System.out.println("[" + this.childId + "] Processed all events.");
-        final long watermarkTimestamp = System.currentTimeMillis() - startTime + WATERMARK_DURATION_MS;
-        List<AggregateWindow> preAggregatedWindows = this.slicer.processWatermark(watermarkTimestamp);
-        this.sendPreAggregatedWindowsToRoot(preAggregatedWindows);
+
     }
 
     private void sendPreAggregatedWindowsToRoot(List<AggregateWindow> preAggregatedWindows) {
@@ -153,11 +162,11 @@ public class DistributedChild implements Runnable {
         ZMQ.Socket controlClient = this.context.createSocket(SocketType.REQ);
         controlClient.connect(DistributedUtils.buildTcpUrl(this.rootIp, this.rootControllerPort));
 
-        controlClient.send("[" + this.childId + "] I am a new child.");
+        controlClient.send(this.childIdString("I am a new child."));
 
         byte[] response = controlClient.recv();
         String windowString = new String(response, ZMQ.CHARSET);
-        System.out.println("[" + this.childId + "] Received: [" + windowString.replace("\n", ";") + "]");
+        System.out.println(this.childIdString("Received: [" + windowString.replace("\n", ";") + "]"));
         return this.createWindowsFromString(windowString);
     }
 
@@ -185,13 +194,17 @@ public class DistributedChild implements Runnable {
                     break;
                 }
                 default: {
-                    System.out.println("No window type known for: '" + windowDetails[0] + "'");
+                    System.out.println(this.childIdString("No window type known for: '" + windowDetails[0] + "'"));
                 }
 
             }
-            System.out.println("Adding window: " + windows.get(windows.size() - 1));
+            System.out.println(this.childIdString("Adding window: " + windows.get(windows.size() - 1)));
         }
 
         return windows;
+    }
+
+    private String childIdString(String msg) {
+        return "[CHILD-" + this.childId + "] " + msg;
     }
 }
