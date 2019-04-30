@@ -16,4 +16,8 @@ public class DistributedChildSlicer<InputType> extends SlicingWindowOperator<Inp
     public List<AggregateWindow> processWatermark(long watermarkTs) {
         return windowManager.processWatermark(watermarkTs);
     }
+
+    public InputType castFromObject(Object item) {
+        return (InputType) item;
+    }
 }

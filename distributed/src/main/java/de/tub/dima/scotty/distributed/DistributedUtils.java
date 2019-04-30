@@ -33,4 +33,8 @@ class DistributedUtils {
     static String buildTcpUrl(String ip, int port) {
         return "tcp://" + ip + ":" + port;
     }
+
+    static String buildLocalTcpUrl(int port) {
+        return buildTcpUrl("0.0.0.0", port);
+    }
 }
