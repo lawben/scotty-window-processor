@@ -53,11 +53,14 @@ public class InputStream<T> implements Runnable {
             eventSender.connect(DistributedUtils.buildTcpUrl(this.nodeIp, this.nodePort));
 
             int numRecordsProcessed = 0;
-            long lastEventTimestamp = -1;
+            long lastEventTimestamp = 0;
             while (numRecordsProcessed < this.config.numEventsToSend) {
+                int max = this.config.maxWaitTimeMillis;
+                int min = this.config.minWaitTimeMillis;
+                int fakeSleepTime = rand.nextInt((max - min) + 1) + min;
+                long eventTimestamp = lastEventTimestamp + fakeSleepTime;
 
                 T eventValue = this.config.generatorFunction.apply(rand);
-                long eventTimestamp = System.currentTimeMillis() - this.config.startTimestamp;
 
                 eventSender.sendMore(String.valueOf(this.streamId));
                 eventSender.sendMore(String.valueOf(eventTimestamp));
@@ -65,15 +68,6 @@ public class InputStream<T> implements Runnable {
 
                 numRecordsProcessed++;
                 lastEventTimestamp = eventTimestamp;
-
-//                int max = this.config.maxWaitTimeMillis;
-//                int min = this.config.minWaitTimeMillis;
-//                int sleepTime = rand.nextInt((max - min) + 1) + min;
-//                try {
-//                    Thread.sleep(sleepTime);
-//                } catch (InterruptedException e) {
-//                    e.printStackTrace();
-//                }
             }
             System.out.println(this.streamIdString("Last event timestamp: " + lastEventTimestamp));
         }

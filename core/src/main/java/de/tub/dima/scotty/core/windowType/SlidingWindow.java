@@ -41,6 +41,10 @@ public class SlidingWindow implements ContextFreeWindow {
         return measure;
     }
 
+    @Override
+    public long getWindowId() {
+        return this.windowId;
+    }
 
     @Override
     public long assignNextWindowStart(long recordStamp) {
@@ -56,8 +60,11 @@ public class SlidingWindow implements ContextFreeWindow {
         long lastStart  = getWindowStartWithOffset(currentWatermark, slide);
 
         for (long windowStart = lastStart; windowStart + size > lastWatermark; windowStart -= slide) {
-            if (windowStart>=0 && windowStart + size <= currentWatermark + 1)
+            if (windowStart >= 0 && windowStart + size <= currentWatermark + 1) {
+                WindowAggregateId windowAggregateId = new WindowAggregateId(this.getWindowId(), windowStart);
+                collector.setWindowAggregateId(windowAggregateId);
                 collector.trigger(windowStart, windowStart + size, measure);
+            }
         }
     }
 

@@ -1,5 +1,9 @@
 package de.tub.dima.scotty.distributed;
 
+import de.tub.dima.scotty.core.windowType.SlidingWindow;
+import de.tub.dima.scotty.core.windowType.TumblingWindow;
+import de.tub.dima.scotty.core.windowType.Window;
+import de.tub.dima.scotty.core.windowType.WindowMeasure;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
@@ -36,5 +40,29 @@ class DistributedUtils {
 
     static String buildLocalTcpUrl(int port) {
         return buildTcpUrl("0.0.0.0", port);
+    }
+
+    static Window buildWindowFromString(String windowString) {
+        String[] windowDetails = windowString.split(",");
+        assert windowDetails.length > 0;
+        switch (windowDetails[0]) {
+            case "TUMBLING": {
+                assert windowDetails.length >= 2;
+                final int size = Integer.parseInt(windowDetails[1]);
+                final int windowId = windowDetails.length == 3 ? Integer.parseInt(windowDetails[2]) : -1;
+                return new TumblingWindow(WindowMeasure.Time, size, windowId);
+            }
+            case "SLIDING": {
+                assert windowDetails.length >= 3;
+                final int size = Integer.parseInt(windowDetails[1]);
+                final int slide = Integer.parseInt(windowDetails[2]);
+                final int windowId = windowDetails.length == 4 ? Integer.parseInt(windowDetails[3]) : -1;
+                return new SlidingWindow(WindowMeasure.Time, size, slide, windowId);
+            }
+            default: {
+                System.err.println("No window type known for: '" + windowDetails[0] + "'");
+                return null;
+            }
+        }
     }
 }

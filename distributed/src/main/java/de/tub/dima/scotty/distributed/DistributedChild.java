@@ -35,8 +35,9 @@ public class DistributedChild implements Runnable {
 
     // Slicing related
     private final DistributedChildSlicer<Integer> slicer;
+    private static final long WATERMARK_DURATION_MS = 1000;
+    private long watermarkMs = WATERMARK_DURATION_MS;
 
-    private static final long WATERMARK_DURATION_MS = 3000;
 
     public DistributedChild(String rootIp, int rootControllerPort, int rootWindowPort, int streamInputPort, int childId) {
         this.rootIp = rootIp;
@@ -72,9 +73,6 @@ public class DistributedChild implements Runnable {
         for (Window window : windows) {
             this.slicer.addWindowAssigner(window);
         }
-
-        // 2. let IoT nodes register themselves
-        this.waitForInputStreams();
 
         // 3. process streams
         // 4. send windows to root
@@ -153,20 +151,17 @@ public class DistributedChild implements Runnable {
         }
     }
 
-    private void waitForInputStreams() {
-        // TODO: open connection here. Fake it for now with only 1 stream.
-        // Should be implemented with REQ/REP.
-    }
-
     private List<Window> getWindowsFromRoot() {
         ZMQ.Socket controlClient = this.context.createSocket(SocketType.REQ);
         controlClient.connect(DistributedUtils.buildTcpUrl(this.rootIp, this.rootControllerPort));
 
         controlClient.send(this.childIdString("I am a new child."));
 
-        byte[] response = controlClient.recv();
-        String windowString = new String(response, ZMQ.CHARSET);
-        System.out.println(this.childIdString("Received: [" + windowString.replace("\n", ";") + "]"));
+        this.watermarkMs = Long.valueOf(controlClient.recvStr());
+        String windowString = controlClient.recvStr();
+        System.out.println(this.childIdString("Received: " + this.watermarkMs +
+                " [" + windowString.replace("\n", ";") + "]"));
+
         return this.createWindowsFromString(windowString);
     }
 
@@ -175,29 +170,7 @@ public class DistributedChild implements Runnable {
 
         String[] windowRows = windowString.split("\n");
         for (String windowRow : windowRows) {
-            String[] windowDetails = windowRow.split(",");
-            assert windowDetails.length > 0;
-            switch (windowDetails[0]) {
-                case "TUMBLING": {
-                    assert windowDetails.length >= 2;
-                    final int size = Integer.parseInt(windowDetails[1]);
-                    final int windowId = windowDetails.length == 3 ? Integer.parseInt(windowDetails[2]) : -1;
-                    windows.add(new TumblingWindow(WindowMeasure.Time, size, windowId));
-                    break;
-                }
-                case "SLIDING": {
-                    assert windowDetails.length >= 3;
-                    final int size = Integer.parseInt(windowDetails[1]);
-                    final int slide = Integer.parseInt(windowDetails[2]);
-                    final int windowId = windowDetails.length == 4 ? Integer.parseInt(windowDetails[3]) : -1;
-                    windows.add(new SlidingWindow(WindowMeasure.Time, size, slide, windowId));
-                    break;
-                }
-                default: {
-                    System.out.println(this.childIdString("No window type known for: '" + windowDetails[0] + "'"));
-                }
-
-            }
+            windows.add(DistributedUtils.buildWindowFromString(windowRow));
             System.out.println(this.childIdString("Adding window: " + windows.get(windows.size() - 1)));
         }
 

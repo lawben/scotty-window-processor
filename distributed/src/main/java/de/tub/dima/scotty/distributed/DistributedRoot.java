@@ -1,6 +1,8 @@
 package de.tub.dima.scotty.distributed;
 
+import de.tub.dima.scotty.core.AggregateWindow;
 import de.tub.dima.scotty.core.WindowAggregateId;
+import de.tub.dima.scotty.core.windowFunction.ReduceAggregateFunction;
 import de.tub.dima.scotty.state.StateFactory;
 import de.tub.dima.scotty.state.memory.MemoryStateFactory;
 import java.util.ArrayList;
@@ -18,9 +20,8 @@ public class DistributedRoot implements Runnable {
     private ZMQ.Socket windowPuller;
     private final int numChildren;
 
-
     // Slicing related
-    private final DistributedRootSlicer<Integer> slicer;
+    private final DistributedWindowMerger<Integer> windowMerger;
 
     public DistributedRoot(int controllerPort, int windowPort, int numChildren) {
         this.controllerPort = controllerPort;
@@ -30,13 +31,13 @@ public class DistributedRoot implements Runnable {
         this.context = new ZContext();
 
         StateFactory stateFactory = new MemoryStateFactory();
-        this.slicer = new DistributedRootSlicer<>(stateFactory);
+        this.windowMerger = new DistributedWindowMerger<>(stateFactory, numChildren);
     }
 
     @Override
     public void run() {
-        System.out.println("Starting root worker with controller port " + this.controllerPort +
-                " and window port " + this.windowPort);
+        System.out.println(this.rootString("Starting root worker with controller port " + this.controllerPort +
+                " and window port " + this.windowPort));
 
         // 1. Wait for all children to register (hard-coded for now)
         this.waitForChildren(this.numChildren);
@@ -54,11 +55,11 @@ public class DistributedRoot implements Runnable {
         ZMQ.Poller preAggregatedWindows = this.context.createPoller(1);
         preAggregatedWindows.register(this.windowPuller, Poller.POLLIN);
 
-        final long pollTimeout = 5 * 1000;
+        final long pollTimeout = 10 * 1000;
         while (!Thread.currentThread().isInterrupted()) {
             if (preAggregatedWindows.poll(pollTimeout) == 0) {
                 // Timed out --> quit
-                System.out.println("No more data to come. Ending root worker...");
+                System.out.println(this.rootString("No more data to come. Ending root worker..."));
                 return;
             }
             if (preAggregatedWindows.pollin(0)) {
@@ -80,8 +81,18 @@ public class DistributedRoot implements Runnable {
                 Object partialAggregateObject = DistributedUtils.bytesToObject(rawPreAggregatedResult);
                 Integer partialAggregate = (Integer) partialAggregateObject;
 
-                System.out.println("[" + childId + "] " + partialAggregate + " <-- pre-aggregated window from " +
-                        windowStartTimestamp + " to " + windowEndTimestamp + " with " + windowId);
+                boolean triggerFinal = this.windowMerger.processPreAggregate(partialAggregate, windowId);
+                System.out.println(this.rootString("[" + childId + "] " + partialAggregate + " <-- pre-aggregated window from " +
+                        windowStartTimestamp + " to " + windowEndTimestamp + " with " + windowId));
+
+                if (triggerFinal) {
+                    AggregateWindow finalWindow = this.windowMerger.triggerFinalWindow(windowId);
+                    if (finalWindow.getAggValues().isEmpty()) {
+                        System.out.println(this.rootString("EMPTY FINAL WINDOW!"));
+                    } else {
+                        System.out.println(this.rootString("FINAL WINDOW: " + finalWindow.getAggValues().get(0)));
+                    }
+                }
             }
         }
     }
@@ -93,16 +104,28 @@ public class DistributedRoot implements Runnable {
         ZMQ.Poller children = this.context.createPoller(1);
         children.register(childReceiver, Poller.POLLIN);
 
-        String[] windowStrings = {"TUMBLING,1000,1", "SLIDING,5000,2000,2"};
-        String completeWindowString = String.join("\n", windowStrings);
+//        String[] windowStrings = {"SLIDING,100,50,2"};
+//        String[] windowStrings = {"TUMBLING,1000,1"};
+        String[] windowStrings = {"TUMBLING,10000,1", "SLIDING,10000,5000,2"};
+        final long WATERMARK_MS = 1000;
 
+        // Set up root the same way as the children will be set up.
+        final ReduceAggregateFunction<Integer> SUM = Integer::sum;
+        this.windowMerger.addWindowFunction(SUM);
+        for (String windowString : windowStrings) {
+            this.windowMerger.addWindowAssigner(DistributedUtils.buildWindowFromString(windowString));
+        }
+
+        String completeWindowString = String.join("\n", windowStrings);
         int numChildrenRegistered = 0;
         while (numChildrenRegistered < numChildren) {
             children.poll();
 
             if (children.pollin(0)) {
                 String message = childReceiver.recvStr();
-                System.out.println("Received from child: " + message);
+                System.out.println(this.rootString("Received from child: " + message));
+
+                childReceiver.sendMore(String.valueOf(WATERMARK_MS));
                 childReceiver.send(completeWindowString);
                 numChildrenRegistered++;
             }
@@ -116,5 +139,9 @@ public class DistributedRoot implements Runnable {
             longs.add(Long.valueOf(string));
         }
         return longs;
+    }
+
+    private String rootString(String msg) {
+        return "[ROOT] " + msg;
     }
 }
