@@ -90,11 +90,7 @@ public class DistributedChild implements Runnable {
         while (!Thread.currentThread().isInterrupted()) {
             if (streams.poll(timeout) == 0) {
                 // Timed out --> all streams registered
-                this.streamWindowMerger = new DistributedWindowMerger<>(stateFactory, this.numStreams);
-                this.streamWindowMerger.addWindowFunction(SUM);
-                for (Window window : windows) {
-                    this.streamWindowMerger.addWindowAssigner(window);
-                }
+                this.streamWindowMerger = new DistributedWindowMerger<>(stateFactory, this.numStreams, windows, SUM);
                 return;
             }
 
