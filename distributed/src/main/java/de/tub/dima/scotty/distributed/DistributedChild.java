@@ -14,7 +14,9 @@ import java.io.IOException;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import org.zeromq.SocketType;
 import org.zeromq.ZContext;
@@ -35,6 +37,8 @@ public class DistributedChild implements Runnable {
 
     // Slicing related
     private final DistributedChildSlicer<Integer> slicer;
+    private final Map<Integer, DistributedChildSlicer<Integer>> slicerPerStream;
+
     private static final long WATERMARK_DURATION_MS = 1000;
     private long watermarkMs = WATERMARK_DURATION_MS;
 
@@ -49,6 +53,7 @@ public class DistributedChild implements Runnable {
         StateFactory stateFactory = new MemoryStateFactory();
         // TODO: add root in correct way
         this.slicer = new DistributedChildSlicer<>(stateFactory);
+        this.slicerPerStream = new HashMap<>();
 
         this.context = new ZContext();
     }
@@ -96,7 +101,7 @@ public class DistributedChild implements Runnable {
         while (!Thread.currentThread().isInterrupted()) {
             if (streamPoller.poll(pollTimeout) == 0) {
                 System.out.println(this.childIdString("Processed all events."));
-                final long watermarkTimestamp = lastWatermark + WATERMARK_DURATION_MS;
+                final long watermarkTimestamp = currentEventTime + WATERMARK_DURATION_MS;
                 List<AggregateWindow> preAggregatedWindows = this.slicer.processWatermark(watermarkTimestamp);
                 this.sendPreAggregatedWindowsToRoot(preAggregatedWindows);
                 System.out.println(this.childIdString("No more data to come. Ending child worker..."));
@@ -107,15 +112,18 @@ public class DistributedChild implements Runnable {
                 int streamId = Integer.parseInt(streamInput.recvStr(ZMQ.DONTWAIT));
                 long eventTimestamp = Long.valueOf(streamInput.recvStr(ZMQ.DONTWAIT));
                 Object eventValue = DistributedUtils.bytesToObject(streamInput.recv(ZMQ.DONTWAIT));
+
+//                slicerPerStream.putIfAbsent(streamId, new DistributedChildSlicer<>(new MemoryStateFactory()));
+//                DistributedChildSlicer<Integer> slicer = slicerPerStream.get(streamId);
                 this.slicer.processElement((this.slicer.castFromObject(eventValue)), eventTimestamp);
                 currentEventTime = eventTimestamp;
             }
 
 
             // If we haven't processed a watermark in WATERMARK_DURATION_MS, process it.
-            final long watermarkTimestamp = lastWatermark + WATERMARK_DURATION_MS;
+            final long watermarkTimestamp = lastWatermark + this.watermarkMs;
             if (currentEventTime >= watermarkTimestamp) {
-                System.out.println(this.childIdString("Processing watermark " + watermarkTimestamp));
+//                System.out.println(this.childIdString("Processing watermark " + watermarkTimestamp));
                 List<AggregateWindow> preAggregatedWindows = this.slicer.processWatermark(watermarkTimestamp);
                 this.sendPreAggregatedWindowsToRoot(preAggregatedWindows);
                 lastWatermark = watermarkTimestamp;
@@ -145,8 +153,7 @@ public class DistributedChild implements Runnable {
             // Long,Long    window start, window end
             // Byte[]       raw bytes of partial aggregate
             this.windowPusher.sendMore(String.valueOf(this.childId));
-            this.windowPusher.sendMore(windowId.getWindowId() + "," + windowId.getWindowStartTimestamp());
-            this.windowPusher.sendMore(preAggregatedWindow.getStart() + "," + preAggregatedWindow.getEnd());
+            this.windowPusher.sendMore(windowId.getWindowId() + "," + windowId.getWindowStartTimestamp() + "," + windowId.getWindowEndTimestamp());
             this.windowPusher.send(partialAggregateBytes);
         }
     }

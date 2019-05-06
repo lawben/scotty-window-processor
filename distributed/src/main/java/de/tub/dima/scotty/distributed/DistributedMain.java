@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
-import org.jetbrains.annotations.NotNull;
 
 public class DistributedMain {
     public static void main(String[] args) {
@@ -53,7 +52,6 @@ public class DistributedMain {
         }
     }
 
-    @NotNull
     private static List<Long> getRandomSeeds(String[] args, int numStreams) {
         final List<Long> randomSeeds = new ArrayList<>();
         if (args.length >= 7) {

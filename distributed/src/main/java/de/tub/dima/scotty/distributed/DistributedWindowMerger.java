@@ -37,7 +37,7 @@ public class DistributedWindowMerger<InputType> extends SlicingWindowOperator<In
 
     public AggregateWindow triggerFinalWindow(WindowAggregateId windowId) {
         AggregateWindow finalWindow = new DistributedAggregateWindowState<>(
-                windowId.getWindowStartTimestamp(), windowAggregates.get(windowId));
+                windowId, windowAggregates.get(windowId));
 
         receivedWindowPreAggregates.remove(windowId);
         windowAggregates.remove(windowId);

@@ -5,10 +5,12 @@ import java.util.Objects;
 public class WindowAggregateId {
     private final long windowId;
     private final long windowStartTimestamp;
+    private final long windowEndTimestamp;
 
-    public WindowAggregateId(long windowId, long windowStartTimestamp) {
+    public WindowAggregateId(long windowId, long windowStartTimestamp, long windowEndTimestamp) {
         this.windowId = windowId;
         this.windowStartTimestamp = windowStartTimestamp;
+        this.windowEndTimestamp = windowEndTimestamp;
     }
 
     public long getWindowId() {
@@ -17,6 +19,10 @@ public class WindowAggregateId {
 
     public long getWindowStartTimestamp() {
         return windowStartTimestamp;
+    }
+
+    public long getWindowEndTimestamp() {
+        return windowEndTimestamp;
     }
 
     @Override
@@ -29,12 +35,13 @@ public class WindowAggregateId {
         }
         WindowAggregateId that = (WindowAggregateId) o;
         return windowId == that.windowId &&
-                windowStartTimestamp == that.windowStartTimestamp;
+                windowStartTimestamp == that.windowStartTimestamp &&
+                windowEndTimestamp == that.windowEndTimestamp;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(windowId, windowStartTimestamp);
+        return Objects.hash(windowId, windowStartTimestamp, windowEndTimestamp);
     }
 
     @Override
@@ -42,6 +49,7 @@ public class WindowAggregateId {
         return "WindowAggregateId{" +
                 "windowId=" + windowId +
                 ", windowStartTimestamp=" + windowStartTimestamp +
+                ", windowEndTimestamp=" + windowEndTimestamp +
                 '}';
     }
 }

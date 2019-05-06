@@ -8,27 +8,27 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class DistributedAggregateWindowState<AggregateType> implements AggregateWindow<AggregateType> {
-    private final long startTimestamp;
+    private final WindowAggregateId windowId;
     private final AggregateState<AggregateType> windowState;
 
-    public DistributedAggregateWindowState(long startTimestamp, AggregateState<AggregateType> windowState) {
-        this.startTimestamp = startTimestamp;
+    public DistributedAggregateWindowState(WindowAggregateId windowId, AggregateState<AggregateType> windowState) {
+        this.windowId = windowId;
         this.windowState = windowState;
     }
 
     @Override
     public WindowMeasure getMeasure() {
-        return null;
+        return WindowMeasure.Time;
     }
 
     @Override
     public long getStart() {
-        return startTimestamp;
+        return this.windowId.getWindowStartTimestamp();
     }
 
     @Override
     public long getEnd() {
-        return -1;
+        return this.windowId.getWindowEndTimestamp();
     }
 
     @Override
@@ -45,6 +45,6 @@ public class DistributedAggregateWindowState<AggregateType> implements Aggregate
 
     @Override
     public WindowAggregateId getWindowAggregateId() {
-        return null;
+        return this.windowId;
     }
 }
