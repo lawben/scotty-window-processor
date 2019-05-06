@@ -3,10 +3,13 @@ package de.tub.dima.scotty.distributed;
 import de.tub.dima.scotty.core.AggregateWindow;
 import de.tub.dima.scotty.core.WindowAggregateId;
 import de.tub.dima.scotty.core.windowFunction.ReduceAggregateFunction;
+import de.tub.dima.scotty.core.windowType.Window;
 import de.tub.dima.scotty.state.StateFactory;
 import de.tub.dima.scotty.state.memory.MemoryStateFactory;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.zeromq.SocketType;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
@@ -21,7 +24,7 @@ public class DistributedRoot implements Runnable {
     private final int numChildren;
 
     // Slicing related
-    private final DistributedWindowMerger<Integer> windowMerger;
+    private DistributedWindowMerger<Integer> windowMerger;
 
     public DistributedRoot(int controllerPort, int windowPort, int numChildren) {
         this.controllerPort = controllerPort;
@@ -29,9 +32,6 @@ public class DistributedRoot implements Runnable {
         this.numChildren = numChildren;
 
         this.context = new ZContext();
-
-        StateFactory stateFactory = new MemoryStateFactory();
-        this.windowMerger = new DistributedWindowMerger<>(stateFactory, numChildren);
     }
 
     @Override
@@ -106,10 +106,8 @@ public class DistributedRoot implements Runnable {
 
         // Set up root the same way as the children will be set up.
         final ReduceAggregateFunction<Integer> SUM = Integer::sum;
-        this.windowMerger.addWindowFunction(SUM);
-        for (String windowString : windowStrings) {
-            this.windowMerger.addWindowAssigner(DistributedUtils.buildWindowFromString(windowString));
-        }
+        List<Window> windows = Arrays.stream(windowStrings).map(DistributedUtils::buildWindowFromString).collect(Collectors.toList());
+        this.windowMerger = new DistributedWindowMerger<>(new MemoryStateFactory(), numChildren, windows, SUM);
 
         String completeWindowString = String.join("\n", windowStrings);
         int numChildrenRegistered = 0;
