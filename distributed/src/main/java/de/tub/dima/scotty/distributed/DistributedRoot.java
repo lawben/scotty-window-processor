@@ -39,10 +39,10 @@ public class DistributedRoot implements Runnable {
         System.out.println(this.rootString("Starting root worker with controller port " + this.controllerPort +
                 " and window port " + this.windowPort));
 
-        // 1. Wait for all children to register (hard-coded for now)
+        // 1. Wait for all children to register
         this.waitForChildren(this.numChildren);
 
-        // 2. wait for pre-aggregated windows
+        // 2. Process pre-aggregated windows
         this.waitForPreAggregatedWindows();
     }
 
@@ -102,12 +102,12 @@ public class DistributedRoot implements Runnable {
 //        String[] windowStrings = {"SLIDING,100,50,2"};
 //        String[] windowStrings = {"TUMBLING,1000,1"};
         String[] windowStrings = {"TUMBLING,10000,1", "SLIDING,10000,5000,2"};
-        final long WATERMARK_MS = 1000;
+        final long WATERMARK_MS = 10000;
 
         // Set up root the same way as the children will be set up.
-        final ReduceAggregateFunction<Integer> SUM = Integer::sum;
+        final ReduceAggregateFunction<Integer> aggFn = DistributedUtils.aggregateFunction();
         List<Window> windows = Arrays.stream(windowStrings).map(DistributedUtils::buildWindowFromString).collect(Collectors.toList());
-        this.windowMerger = new DistributedWindowMerger<>(new MemoryStateFactory(), numChildren, windows, SUM);
+        this.windowMerger = new DistributedWindowMerger<>(new MemoryStateFactory(), numChildren, windows, aggFn);
 
         String completeWindowString = String.join("\n", windowStrings);
         int numChildrenRegistered = 0;

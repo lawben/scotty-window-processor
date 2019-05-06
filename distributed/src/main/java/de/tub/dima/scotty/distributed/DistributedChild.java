@@ -84,13 +84,13 @@ public class DistributedChild implements Runnable {
         final MemoryStateFactory stateFactory = new MemoryStateFactory();
 
         // TODO: also get this from root
-        final ReduceAggregateFunction<Integer> SUM = Integer::sum;
+        final ReduceAggregateFunction<Integer> aggFn = DistributedUtils.aggregateFunction();
         byte[] ackResponse = new byte[] {'\0'};
 
         while (!Thread.currentThread().isInterrupted()) {
             if (streams.poll(timeout) == 0) {
                 // Timed out --> all streams registered
-                this.streamWindowMerger = new DistributedWindowMerger<>(stateFactory, this.numStreams, windows, SUM);
+                this.streamWindowMerger = new DistributedWindowMerger<>(stateFactory, this.numStreams, windows, aggFn);
                 return;
             }
 
@@ -98,7 +98,7 @@ public class DistributedChild implements Runnable {
             System.out.println(this.childIdString("Registering stream " + streamId));
 
             DistributedChildSlicer<Integer> childSlicer = new DistributedChildSlicer<>(stateFactory);
-            childSlicer.addWindowFunction(SUM);
+            childSlicer.addWindowFunction(aggFn);
             for (Window window : windows) {
                 childSlicer.addWindowAssigner(window);
             }

@@ -1,5 +1,7 @@
 package de.tub.dima.scotty.distributed;
 
+import de.tub.dima.scotty.core.windowFunction.AggregateFunction;
+import de.tub.dima.scotty.core.windowFunction.ReduceAggregateFunction;
 import de.tub.dima.scotty.core.windowType.SlidingWindow;
 import de.tub.dima.scotty.core.windowType.TumblingWindow;
 import de.tub.dima.scotty.core.windowType.Window;
@@ -64,5 +66,9 @@ class DistributedUtils {
                 return null;
             }
         }
+    }
+
+    static ReduceAggregateFunction<Integer> aggregateFunction() {
+        return (a, b) -> b == null ? a : a + b;
     }
 }
