@@ -1,5 +1,9 @@
 package de.tub.dima.scotty.distributed;
 
-public class DistributedWindowTest {
+import org.junit.Test;
 
+public class DistributedWindowTest {
+    @Test
+    public void testX() {
+    }
 }
