@@ -45,9 +45,10 @@ public class TumblingWindow implements ContextFreeWindow {
     public void triggerWindows(WindowCollector aggregateWindows, long lastWatermark, long currentWatermark) {
         long lastStart = lastWatermark - ((lastWatermark + size) % size);
         for (long windowStart = lastStart; windowStart + size <= currentWatermark; windowStart += size) {
-            WindowAggregateId windowAggregateId = new WindowAggregateId(this.getWindowId(), windowStart);
+            long windowEnd = windowStart + size;
+            WindowAggregateId windowAggregateId = new WindowAggregateId(this.getWindowId(), windowStart, windowEnd);
             aggregateWindows.setWindowAggregateId(windowAggregateId);
-            aggregateWindows.trigger(windowStart, windowStart + size, measure);
+            aggregateWindows.trigger(windowStart, windowEnd, measure);
         }
     }
 

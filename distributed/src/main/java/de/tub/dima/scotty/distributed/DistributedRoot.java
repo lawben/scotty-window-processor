@@ -65,32 +65,28 @@ public class DistributedRoot implements Runnable {
             if (preAggregatedWindows.pollin(0)) {
                 String childId = this.windowPuller.recvStr(ZMQ.DONTWAIT);
                 String rawAggregateWindowId = this.windowPuller.recvStr(ZMQ.DONTWAIT);
-                String rawWindowTimestamps = this.windowPuller.recvStr(ZMQ.DONTWAIT);
                 byte[] rawPreAggregatedResult = this.windowPuller.recv(ZMQ.DONTWAIT);
 
                 // WindowId
                 List<Long> windowIdSplit = stringToLongs(rawAggregateWindowId);
-                WindowAggregateId windowId = new WindowAggregateId(windowIdSplit.get(0), windowIdSplit.get(1));
-
-                // Window Timestamps
-                List<Long> windowTimestampSplit = stringToLongs(rawWindowTimestamps);
-                long windowStartTimestamp = windowTimestampSplit.get(0);
-                long windowEndTimestamp = windowTimestampSplit.get(1);
+                WindowAggregateId windowId = new WindowAggregateId(
+                        windowIdSplit.get(0), windowIdSplit.get(1), windowIdSplit.get(2));
 
                 // Partial Aggregate
                 Object partialAggregateObject = DistributedUtils.bytesToObject(rawPreAggregatedResult);
                 Integer partialAggregate = (Integer) partialAggregateObject;
 
                 boolean triggerFinal = this.windowMerger.processPreAggregate(partialAggregate, windowId);
-                System.out.println(this.rootString("[" + childId + "] " + partialAggregate + " <-- pre-aggregated window from " +
-                        windowStartTimestamp + " to " + windowEndTimestamp + " with " + windowId));
+//                System.out.println(this.rootString("[" + childId + "] " + partialAggregate + " <-- pre-aggregated window from " +
+//                        windowStartTimestamp + " to " + windowEndTimestamp + " with " + windowId));
 
                 if (triggerFinal) {
                     AggregateWindow finalWindow = this.windowMerger.triggerFinalWindow(windowId);
                     if (finalWindow.getAggValues().isEmpty()) {
                         System.out.println(this.rootString("EMPTY FINAL WINDOW!"));
                     } else {
-                        System.out.println(this.rootString("FINAL WINDOW: " + finalWindow.getAggValues().get(0)));
+                        System.out.println(this.rootString("FINAL WINDOW: " + finalWindow.getWindowAggregateId() +
+                                " --> " + finalWindow.getAggValues().get(0)));
                     }
                 }
             }
