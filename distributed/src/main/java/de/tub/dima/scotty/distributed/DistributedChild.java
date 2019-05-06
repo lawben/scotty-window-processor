@@ -3,21 +3,13 @@ package de.tub.dima.scotty.distributed;
 import de.tub.dima.scotty.core.AggregateWindow;
 import de.tub.dima.scotty.core.WindowAggregateId;
 import de.tub.dima.scotty.core.windowFunction.ReduceAggregateFunction;
-import de.tub.dima.scotty.core.windowType.SlidingWindow;
-import de.tub.dima.scotty.core.windowType.TumblingWindow;
 import de.tub.dima.scotty.core.windowType.Window;
-import de.tub.dima.scotty.core.windowType.WindowMeasure;
-import de.tub.dima.scotty.state.StateFactory;
 import de.tub.dima.scotty.state.memory.MemoryStateFactory;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
+import java.util.Optional;
 import org.zeromq.SocketType;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
@@ -34,13 +26,17 @@ public class DistributedChild implements Runnable {
     private final int streamInputPort;
     private final ZContext context;
     private ZMQ.Socket windowPusher;
+    final static int STREAM_REGISTER_PORT_OFFSET = 100;
+    final static long STREAM_REGISTER_TIMEOUT_MS = 1500;
 
     // Slicing related
-    private final DistributedChildSlicer<Integer> slicer;
+//    private final DistributedChildSlicer<Integer> slicer;
     private final Map<Integer, DistributedChildSlicer<Integer>> slicerPerStream;
+    private int numStreams;
+    private DistributedWindowMerger<Integer> streamWindowMerger;
 
-    private static final long WATERMARK_DURATION_MS = 1000;
-    private long watermarkMs = WATERMARK_DURATION_MS;
+//    private static final long WATERMARK_DURATION_MS = 1000;
+    private long watermarkMs;
 
 
     public DistributedChild(String rootIp, int rootControllerPort, int rootWindowPort, int streamInputPort, int childId) {
@@ -50,9 +46,6 @@ public class DistributedChild implements Runnable {
         this.streamInputPort = streamInputPort;
         this.childId = childId;
 
-        StateFactory stateFactory = new MemoryStateFactory();
-        // TODO: add root in correct way
-        this.slicer = new DistributedChildSlicer<>(stateFactory);
         this.slicerPerStream = new HashMap<>();
 
         this.context = new ZContext();
@@ -60,8 +53,9 @@ public class DistributedChild implements Runnable {
 
     @Override
     public void run() {
-        System.out.println(this.childIdString("Starting child worker. Connecting to root at " + this.rootIp +
-                " with controller port " + this.rootControllerPort + " and window port " + this.rootWindowPort));
+        System.out.println(this.childIdString("Starting child worker on port " + this.streamInputPort +
+                ". Connecting to root at " + this.rootIp + " with controller port " + this.rootControllerPort +
+                " and window port " + this.rootWindowPort));
 
         // 1. connect to root server
         // 1.1. receive commands from root (i.e. windows, agg. functions, etc.)
@@ -71,18 +65,52 @@ public class DistributedChild implements Runnable {
             throw new RuntimeException(this.childIdString("Did not receive any windows from root!"));
         }
 
-        // TODO: also get this from root
-        final ReduceAggregateFunction<Integer> SUM = Integer::sum;
-        this.slicer.addWindowFunction(SUM);
-
-        for (Window window : windows) {
-            this.slicer.addWindowAssigner(window);
-        }
+        // 2. register streams
+        this.registerStreams(STREAM_REGISTER_TIMEOUT_MS, windows);
 
         // 3. process streams
         // 4. send windows to root
         this.processStreams();
 
+    }
+
+    private void registerStreams(final long timeout, final List<Window> windows) {
+        final ZMQ.Socket streamReceiver = this.context.createSocket(SocketType.REP);
+        streamReceiver.bind(DistributedUtils.buildLocalTcpUrl(this.streamInputPort + STREAM_REGISTER_PORT_OFFSET));
+
+        final ZMQ.Poller streams = this.context.createPoller(1);
+        streams.register(streamReceiver, Poller.POLLIN);
+
+        final MemoryStateFactory stateFactory = new MemoryStateFactory();
+
+        // TODO: also get this from root
+        final ReduceAggregateFunction<Integer> SUM = Integer::sum;
+        byte[] ackResponse = new byte[] {'\0'};
+
+        while (!Thread.currentThread().isInterrupted()) {
+            if (streams.poll(timeout) == 0) {
+                // Timed out --> all streams registered
+                this.streamWindowMerger = new DistributedWindowMerger<>(stateFactory, this.numStreams);
+                this.streamWindowMerger.addWindowFunction(SUM);
+                for (Window window : windows) {
+                    this.streamWindowMerger.addWindowAssigner(window);
+                }
+                return;
+            }
+
+            final int streamId = Integer.parseInt(streamReceiver.recvStr(ZMQ.DONTWAIT));
+            System.out.println(this.childIdString("Registering stream " + streamId));
+
+            DistributedChildSlicer<Integer> childSlicer = new DistributedChildSlicer<>(stateFactory);
+            childSlicer.addWindowFunction(SUM);
+            for (Window window : windows) {
+                childSlicer.addWindowAssigner(window);
+            }
+            this.slicerPerStream.put(streamId, childSlicer);
+            this.numStreams++;
+
+            streamReceiver.send(ackResponse);
+        }
     }
 
     private void processStreams() {
@@ -96,42 +124,66 @@ public class DistributedChild implements Runnable {
 
         long currentEventTime = 0;
         long lastWatermark = 0;
+        long numEvents = 0;
         final long pollTimeout = 3 * 1000;
 
         while (!Thread.currentThread().isInterrupted()) {
             if (streamPoller.poll(pollTimeout) == 0) {
-                System.out.println(this.childIdString("Processed all events."));
-                final long watermarkTimestamp = currentEventTime + WATERMARK_DURATION_MS;
-                List<AggregateWindow> preAggregatedWindows = this.slicer.processWatermark(watermarkTimestamp);
-                this.sendPreAggregatedWindowsToRoot(preAggregatedWindows);
+                System.out.println(this.childIdString("Processed " + numEvents + " events in total."));
+                final long watermarkTimestamp = currentEventTime + this.watermarkMs;
+                this.processWatermarkedWindows(watermarkTimestamp);
                 System.out.println(this.childIdString("No more data to come. Ending child worker..."));
                 return;
             }
 
-            if (streamPoller.pollin(0)) {
-                int streamId = Integer.parseInt(streamInput.recvStr(ZMQ.DONTWAIT));
-                long eventTimestamp = Long.valueOf(streamInput.recvStr(ZMQ.DONTWAIT));
-                Object eventValue = DistributedUtils.bytesToObject(streamInput.recv(ZMQ.DONTWAIT));
+            int streamId = Integer.parseInt(streamInput.recvStr(ZMQ.DONTWAIT));
+            long eventTimestamp = Long.valueOf(streamInput.recvStr(ZMQ.DONTWAIT));
+            Object eventValue = DistributedUtils.bytesToObject(streamInput.recv(ZMQ.DONTWAIT));
 
-//                slicerPerStream.putIfAbsent(streamId, new DistributedChildSlicer<>(new MemoryStateFactory()));
-//                DistributedChildSlicer<Integer> slicer = slicerPerStream.get(streamId);
-                this.slicer.processElement((this.slicer.castFromObject(eventValue)), eventTimestamp);
-                currentEventTime = eventTimestamp;
-            }
+            DistributedChildSlicer<Integer> perStreamSlicer = slicerPerStream.get(streamId);
+            perStreamSlicer.processElement(perStreamSlicer.castFromObject(eventValue), eventTimestamp);
+            currentEventTime = eventTimestamp;
+            numEvents++;
 
 
-            // If we haven't processed a watermark in WATERMARK_DURATION_MS, process it.
+            // If we haven't processed a watermark in watermarkMs milliseconds, process it.
             final long watermarkTimestamp = lastWatermark + this.watermarkMs;
             if (currentEventTime >= watermarkTimestamp) {
 //                System.out.println(this.childIdString("Processing watermark " + watermarkTimestamp));
-                List<AggregateWindow> preAggregatedWindows = this.slicer.processWatermark(watermarkTimestamp);
-                this.sendPreAggregatedWindowsToRoot(preAggregatedWindows);
+                this.processWatermarkedWindows(watermarkTimestamp);
                 lastWatermark = watermarkTimestamp;
             }
         }
-
-
     }
+
+    private void processWatermarkedWindows(long watermarkTimestamp) {
+        this.slicerPerStream.forEach((streamId, slicer) -> {
+            List<AggregateWindow> preAggregatedWindows = slicer.processWatermark(watermarkTimestamp);
+            List<AggregateWindow> finalPreWAggregateWindows = this.mergeStreamWindows(preAggregatedWindows);
+            this.sendPreAggregatedWindowsToRoot(finalPreWAggregateWindows);
+        });
+    }
+
+    private List<AggregateWindow> mergeStreamWindows(List<AggregateWindow> preAggregatedWindows) {
+        List<AggregateWindow> finalPreAggregateWindows = new ArrayList<>(preAggregatedWindows.size());
+
+        for (AggregateWindow preAggWindow : preAggregatedWindows) {
+            AggregateWindow<Integer> typedPreAggregateWindow = (AggregateWindow<Integer>) preAggWindow;
+            List<Integer> aggValues = typedPreAggregateWindow.getAggValues();
+            Integer partialAggregate = aggValues.isEmpty() ? null : aggValues.get(0);
+            WindowAggregateId windowId = preAggWindow.getWindowAggregateId();
+            boolean finalTrigger = this.streamWindowMerger.processPreAggregate(partialAggregate, windowId);
+
+            if (finalTrigger) {
+//                System.out.println(this.childIdString("Trigger in merge for " + windowId));
+                AggregateWindow<Integer> finalPreAggregateWindow = this.streamWindowMerger.triggerFinalWindow(windowId);
+                finalPreAggregateWindows.add(finalPreAggregateWindow);
+            }
+        }
+
+        return finalPreAggregateWindows;
+    }
+
 
     private void sendPreAggregatedWindowsToRoot(List<AggregateWindow> preAggregatedWindows) {
         if (this.windowPusher == null) {

@@ -35,9 +35,8 @@ public class DistributedWindowMerger<InputType> extends SlicingWindowOperator<In
         return receivedCounter.longValue() == numChildren;
     }
 
-    public AggregateWindow triggerFinalWindow(WindowAggregateId windowId) {
-        AggregateWindow finalWindow = new DistributedAggregateWindowState<>(
-                windowId, windowAggregates.get(windowId));
+    public AggregateWindow<InputType> triggerFinalWindow(WindowAggregateId windowId) {
+        AggregateWindow finalWindow = new DistributedAggregateWindowState<>(windowId, windowAggregates.get(windowId));
 
         receivedWindowPreAggregates.remove(windowId);
         windowAggregates.remove(windowId);

@@ -49,8 +49,15 @@ public class InputStream<T> implements Runnable {
         Random rand = new Random(this.config.randomSeed);
 
         try (ZContext context = new ZContext()) {
+
+            this.registerAtNode(context);
+
             ZMQ.Socket eventSender = context.createSocket(SocketType.PUSH);
             eventSender.connect(DistributedUtils.buildTcpUrl(this.nodeIp, this.nodePort));
+
+            Thread.sleep(DistributedChild.STREAM_REGISTER_TIMEOUT_MS * 2);
+
+            System.out.println(this.streamIdString("Start sending data"));
 
             int numRecordsProcessed = 0;
             long lastEventTimestamp = 0;
@@ -70,9 +77,20 @@ public class InputStream<T> implements Runnable {
                 lastEventTimestamp = eventTimestamp;
             }
             System.out.println(this.streamIdString("Last event timestamp: " + lastEventTimestamp));
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
 
         System.out.println(this.streamIdString("Finished sending events. Shutting down..."));
+    }
+
+    private void registerAtNode(ZContext context) {
+        final ZMQ.Socket nodeRegistrar = context.createSocket(SocketType.REQ);
+        nodeRegistrar.connect(DistributedUtils.buildTcpUrl(this.nodeIp, this.nodePort + DistributedChild.STREAM_REGISTER_PORT_OFFSET));
+
+        nodeRegistrar.send(String.valueOf(this.streamId));
+        nodeRegistrar.recv();
+        System.out.println(this.streamIdString("Registered at node."));
     }
 
     private String streamIdString(String msg) {

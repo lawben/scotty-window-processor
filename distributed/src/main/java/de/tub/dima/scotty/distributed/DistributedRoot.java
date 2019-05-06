@@ -77,8 +77,7 @@ public class DistributedRoot implements Runnable {
                 Integer partialAggregate = (Integer) partialAggregateObject;
 
                 boolean triggerFinal = this.windowMerger.processPreAggregate(partialAggregate, windowId);
-//                System.out.println(this.rootString("[" + childId + "] " + partialAggregate + " <-- pre-aggregated window from " +
-//                        windowStartTimestamp + " to " + windowEndTimestamp + " with " + windowId));
+//                System.out.println(this.rootString("[" + childId + "] " + partialAggregate + " <-- pre-aggregated window " + windowId));
 
                 if (triggerFinal) {
                     AggregateWindow finalWindow = this.windowMerger.triggerFinalWindow(windowId);
