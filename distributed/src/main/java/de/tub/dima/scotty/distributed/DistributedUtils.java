@@ -48,15 +48,15 @@ class DistributedUtils {
         switch (windowDetails[0]) {
             case "TUMBLING": {
                 assert windowDetails.length >= 2;
-                final int size = Integer.parseInt(windowDetails[1]);
-                final int windowId = windowDetails.length == 3 ? Integer.parseInt(windowDetails[2]) : -1;
+                final long size = Integer.parseInt(windowDetails[1]);
+                final long windowId = windowDetails.length == 3 ? Integer.parseInt(windowDetails[2]) : -1;
                 return new TumblingWindow(WindowMeasure.Time, size, windowId);
             }
             case "SLIDING": {
                 assert windowDetails.length >= 3;
-                final int size = Integer.parseInt(windowDetails[1]);
-                final int slide = Integer.parseInt(windowDetails[2]);
-                final int windowId = windowDetails.length == 4 ? Integer.parseInt(windowDetails[3]) : -1;
+                final long size = Integer.parseInt(windowDetails[1]);
+                final long slide = Integer.parseInt(windowDetails[2]);
+                final long windowId = windowDetails.length == 4 ? Integer.parseInt(windowDetails[3]) : -1;
                 return new SlidingWindow(WindowMeasure.Time, size, slide, windowId);
             }
             default: {
