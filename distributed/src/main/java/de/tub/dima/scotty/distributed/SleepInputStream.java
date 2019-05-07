@@ -25,12 +25,7 @@ public class SleepInputStream<T> extends InputStream<T> {
 
             eventSender.sendMore(String.valueOf(this.streamId));
             eventSender.sendMore(String.valueOf(eventTimestamp));
-            boolean handedOver = eventSender.send(DistributedUtils.objectToBytes(eventValue));
-
-            if (!handedOver) {
-                System.err.println("Did not hand over");
-            }
-
+            eventSender.send(DistributedUtils.objectToBytes(eventValue));
 
             numRecordsProcessed++;
             lastEventTimestamp = eventTimestamp;
