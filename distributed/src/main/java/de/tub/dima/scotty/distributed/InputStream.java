@@ -24,11 +24,23 @@ class InputStreamConfig<T> {
         this.generatorFunction = generatorFunction;
         this.randomSeed = randomSeed;
     }
+
+    @Override
+    public String toString() {
+        return "InputStreamConfig{" +
+                "numEventsToSend=" + numEventsToSend +
+                ", minWaitTimeMillis=" + minWaitTimeMillis +
+                ", maxWaitTimeMillis=" + maxWaitTimeMillis +
+                ", startTimestamp=" + startTimestamp +
+                ", generatorFunction=" + generatorFunction +
+                ", randomSeed=" + randomSeed +
+                '}';
+    }
 }
 
-public class InputStream<T> implements Runnable {
+abstract public class InputStream<T> implements Runnable {
 
-    private final int streamId;
+    protected final int streamId;
     private final InputStreamConfig<T> config;
     private final String nodeIp;
     private final int nodePort;
@@ -40,49 +52,42 @@ public class InputStream<T> implements Runnable {
         this.nodePort = nodePort;
     }
 
+    /**
+     * Implement this to generate data in the wanted manner.
+     * Example: generate a value an then sleep for x ms or just increase the timestmpa by x ms.
+     */
+    protected abstract long generateAndSendEvents(InputStreamConfig<T> config, Random rand, ZMQ.Socket eventSender) throws Exception;
+
+    protected String streamName() { return this.getClass().getSimpleName(); }
+
     @Override
     public void run() {
-        System.out.println(this.streamIdString("Starting stream of " + this.config.numEventsToSend + " events to node "
-                + this.nodeIp + ":" + this.nodePort));
+        System.out.println(this.streamIdString("Starting " + this.streamName() + " with " + this.config.numEventsToSend
+                + " events to node " + this.nodeIp + ":" + this.nodePort + " with " + this.config));
 
         System.out.println(this.streamIdString("Using seed: " + this.config.randomSeed));
         Random rand = new Random(this.config.randomSeed);
 
         try (ZContext context = new ZContext()) {
-
             this.registerAtNode(context);
 
             ZMQ.Socket eventSender = context.createSocket(SocketType.PUSH);
             eventSender.connect(DistributedUtils.buildTcpUrl(this.nodeIp, this.nodePort));
 
             Thread.sleep(DistributedChild.STREAM_REGISTER_TIMEOUT_MS * 2);
-
             System.out.println(this.streamIdString("Start sending data"));
 
-            int numRecordsProcessed = 0;
-            long lastEventTimestamp = 0;
-            while (numRecordsProcessed < this.config.numEventsToSend) {
-                int max = this.config.maxWaitTimeMillis;
-                int min = this.config.minWaitTimeMillis;
-                int fakeSleepTime = rand.nextInt((max - min) + 1) + min;
-                long eventTimestamp = lastEventTimestamp + fakeSleepTime;
+            long lastEventTimestamp = this.generateAndSendEvents(this.config, rand, eventSender);
 
-                T eventValue = this.config.generatorFunction.apply(rand);
-
-                eventSender.sendMore(String.valueOf(this.streamId));
-                eventSender.sendMore(String.valueOf(eventTimestamp));
-                eventSender.send(DistributedUtils.objectToBytes(eventValue));
-
-                numRecordsProcessed++;
-                lastEventTimestamp = eventTimestamp;
-            }
             System.out.println(this.streamIdString("Last event timestamp: " + lastEventTimestamp));
-        } catch (InterruptedException e) {
+        } catch (Exception e) {
             e.printStackTrace();
+            System.exit(1);
         }
 
         System.out.println(this.streamIdString("Finished sending events. Shutting down..."));
     }
+
 
     private void registerAtNode(ZContext context) {
         final ZMQ.Socket nodeRegistrar = context.createSocket(SocketType.REQ);
