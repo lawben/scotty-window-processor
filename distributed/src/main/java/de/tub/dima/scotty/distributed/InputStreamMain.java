@@ -25,7 +25,7 @@ public class InputStreamMain {
         InputStreamConfig<Integer> config =
                 new InputStreamConfig<>(numEvents, 10, 100, System.currentTimeMillis(), eventGenerator, randomSeed);
 
-        InputStream<Integer> stream = new InputStream<>(streamId, config, nodeIp, nodePort);
+        InputStream<Integer> stream = new ThroughputInputStream<>(streamId, config, nodeIp, nodePort);
         Thread thread = new Thread(stream);
         thread.start();
     }

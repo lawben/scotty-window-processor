@@ -100,9 +100,9 @@ public class DistributedRoot implements Runnable {
         children.register(childReceiver, Poller.POLLIN);
 
 //        String[] windowStrings = {"SLIDING,100,50,2"};
-//        String[] windowStrings = {"TUMBLING,1000,1"};
-        String[] windowStrings = {"TUMBLING,10000,1", "SLIDING,10000,5000,2"};
-        final long WATERMARK_MS = 10000;
+        String[] windowStrings = {"TUMBLING,1000,1"};
+//        String[] windowStrings = {"TUMBLING,10000,1", "SLIDING,10000,5000,2"};
+        final long WATERMARK_MS = 1000;
 
         // Set up root the same way as the children will be set up.
         final ReduceAggregateFunction<Integer> aggFn = DistributedUtils.aggregateFunction();
