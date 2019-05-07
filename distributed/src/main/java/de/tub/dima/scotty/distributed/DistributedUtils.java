@@ -1,5 +1,6 @@
 package de.tub.dima.scotty.distributed;
 
+import de.tub.dima.scotty.core.WindowAggregateId;
 import de.tub.dima.scotty.core.windowFunction.AggregateFunction;
 import de.tub.dima.scotty.core.windowFunction.ReduceAggregateFunction;
 import de.tub.dima.scotty.core.windowType.SlidingWindow;
@@ -10,10 +11,13 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
-class DistributedUtils {
+public class DistributedUtils {
 
-    static byte[] objectToBytes(Object object) {
+    public static byte[] objectToBytes(Object object) {
         try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
             ObjectOutputStream out = new ObjectOutputStream(bos);
             out.writeObject(object);
@@ -25,7 +29,7 @@ class DistributedUtils {
         return new byte[]{0};
     }
 
-    static Object bytesToObject(byte[] bytes) {
+    public static Object bytesToObject(byte[] bytes) {
         try (ByteArrayInputStream bis = new ByteArrayInputStream(bytes)) {
             ObjectInputStream in = new ObjectInputStream(bis);
             return in.readObject();
@@ -36,15 +40,19 @@ class DistributedUtils {
         }
     }
 
-    static String buildTcpUrl(String ip, int port) {
+    public static String buildTcpUrl(String ip, int port) {
         return "tcp://" + ip + ":" + port;
     }
 
-    static String buildLocalTcpUrl(int port) {
+    public static String buildLocalTcpUrl(int port) {
         return buildTcpUrl("0.0.0.0", port);
     }
 
-    static Window buildWindowFromString(String windowString) {
+    public static String buildIpcUrl(String path) {
+        return "ipc://" + path;
+    }
+
+    public static Window buildWindowFromString(String windowString) {
         String[] windowDetails = windowString.split(",");
         assert windowDetails.length > 0;
         switch (windowDetails[0]) {
@@ -68,7 +76,47 @@ class DistributedUtils {
         }
     }
 
-    static ReduceAggregateFunction<Integer> aggregateFunction() {
+    public static String windowIdToString(WindowAggregateId windowId) {
+        return windowId.getWindowId() + "," +
+               windowId.getWindowStartTimestamp() + "," +
+               windowId.getWindowEndTimestamp();
+    }
+
+    public static WindowAggregateId stringToWindowId(String rawString) {
+        List<Long> windowIdSplit = stringToLongs(rawString);
+        assert windowIdSplit.size() == 3;
+        return new WindowAggregateId(windowIdSplit.get(0), windowIdSplit.get(1), windowIdSplit.get(2));
+    }
+
+    public static List<Long> stringToLongs(String rawString) {
+        String[] strings = rawString.split(",");
+        List<Long> longs = new ArrayList<>(strings.length);
+        for (String string : strings) {
+            longs.add(Long.valueOf(string));
+        }
+        return longs;
+    }
+
+    public static List<Long> getRandomSeeds(String[] args, int numStreams, int position) {
+        final List<Long> randomSeeds = new ArrayList<>();
+        if (args.length >= position + 1) {
+            String seedString = args[position];
+            String[] seedStringSplit = seedString.split(",");
+            assert seedStringSplit.length == numStreams;
+
+            for (String seed : seedStringSplit) {
+                randomSeeds.add(Long.valueOf(seed));
+            }
+        } else {
+            Random rand = new Random();
+            for (int i = 0; i < numStreams; i++) {
+                randomSeeds.add(rand.nextLong());
+            }
+        }
+        return randomSeeds;
+    }
+
+    public static ReduceAggregateFunction<Integer> aggregateFunctionSum() {
         return (a, b) -> b == null ? a : a + b;
     }
 }

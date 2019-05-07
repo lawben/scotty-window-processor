@@ -1,19 +1,23 @@
 package de.tub.dima.scotty.distributed;
 
 import java.util.Random;
-import org.zeromq.ZMQ.Socket;
+import org.zeromq.ZMQ;
 
 /**
  * Uses the random function to sleep. This causes the event time to progress "normally". The sleep times are
  * deterministic under the same `rand` condition but the sleep is not.
  */
-public class SleepInputStream<T> extends InputStream<T> {
-    public SleepInputStream(int streamId, InputStreamConfig<T> config, String nodeIp, int nodePort) {
-        super(streamId, config, nodeIp, nodePort);
+public class SleepEventGenerator<T> implements EventGenerator<T> {
+    private final int streamId;
+    private final InputStreamConfig<T> config;
+
+    public SleepEventGenerator(int streamId, InputStreamConfig<T> config) {
+        this.streamId = streamId;
+        this.config = config;
     }
 
     @Override
-    final protected long generateAndSendEvents(InputStreamConfig<T> config, Random rand, Socket eventSender) throws Exception {
+    public long generateAndSendEvents(Random rand, ZMQ.Socket eventSender) throws Exception {
         int numRecordsProcessed = 0;
         long lastEventTimestamp = 0;
         long startTime = config.startTimestamp;
@@ -39,3 +43,4 @@ public class SleepInputStream<T> extends InputStream<T> {
         Thread.sleep(sleepTime);
     }
 }
+

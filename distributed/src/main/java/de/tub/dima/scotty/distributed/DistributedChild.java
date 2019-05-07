@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.zeromq.SocketType;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
@@ -25,9 +24,12 @@ public class DistributedChild implements Runnable {
     private final int rootWindowPort;
     private final int streamInputPort;
     private final ZContext context;
+
     private ZMQ.Socket windowPusher;
     final static int STREAM_REGISTER_PORT_OFFSET = 100;
-    final static long STREAM_REGISTER_TIMEOUT_MS = 1500;
+    public final static long STREAM_REGISTER_TIMEOUT_MS = 1500;
+
+    private final static long STREAM_INPUT_TIMEOUT_MS = 3 * 1000;
 
     // Slicing related
 //    private final DistributedChildSlicer<Integer> slicer;
@@ -84,7 +86,7 @@ public class DistributedChild implements Runnable {
         final MemoryStateFactory stateFactory = new MemoryStateFactory();
 
         // TODO: also get this from root
-        final ReduceAggregateFunction<Integer> aggFn = DistributedUtils.aggregateFunction();
+        final ReduceAggregateFunction<Integer> aggFn = DistributedUtils.aggregateFunctionSum();
         byte[] ackResponse = new byte[] {'\0'};
 
         while (!Thread.currentThread().isInterrupted()) {
@@ -121,10 +123,9 @@ public class DistributedChild implements Runnable {
         long currentEventTime = 0;
         long lastWatermark = 0;
         long numEvents = 0;
-        final long pollTimeout = 3 * 1000;
 
         while (!Thread.currentThread().isInterrupted()) {
-            if (streamPoller.poll(pollTimeout) == 0) {
+            if (streamPoller.poll(STREAM_INPUT_TIMEOUT_MS) == 0) {
                 System.out.println(this.childIdString("Processed " + numEvents + " events in total."));
                 final long watermarkTimestamp = currentEventTime + this.watermarkMs;
                 this.processWatermarkedWindows(watermarkTimestamp);
@@ -145,7 +146,7 @@ public class DistributedChild implements Runnable {
             // If we haven't processed a watermark in watermarkMs milliseconds, process it.
             final long watermarkTimestamp = lastWatermark + this.watermarkMs;
             if (currentEventTime >= watermarkTimestamp) {
-//                System.out.println(this.childIdString("Processing watermark " + watermarkTimestamp));
+//                System.out.println(this.forwardIdString("Processing watermark " + watermarkTimestamp));
                 this.processWatermarkedWindows(watermarkTimestamp);
                 lastWatermark = watermarkTimestamp;
             }
@@ -171,7 +172,7 @@ public class DistributedChild implements Runnable {
             boolean finalTrigger = this.streamWindowMerger.processPreAggregate(partialAggregate, windowId);
 
             if (finalTrigger) {
-//                System.out.println(this.childIdString("Trigger in merge for " + windowId));
+//                System.out.println(this.forwardIdString("Trigger in merge for " + windowId));
                 AggregateWindow<Integer> finalPreAggregateWindow = this.streamWindowMerger.triggerFinalWindow(windowId);
                 finalPreAggregateWindows.add(finalPreAggregateWindow);
             }
@@ -196,12 +197,11 @@ public class DistributedChild implements Runnable {
             byte[] partialAggregateBytes = DistributedUtils.objectToBytes(partialAggregate);
 
             // Order:
-            // Integer      childId
-            // Integer,Long WindowAggregateId
-            // Long,Long    window start, window end
-            // Byte[]       raw bytes of partial aggregate
+            // Integer           childId
+            // Integer,Long,Long WindowAggregateId
+            // Byte[]            raw bytes of partial aggregate
             this.windowPusher.sendMore(String.valueOf(this.childId));
-            this.windowPusher.sendMore(windowId.getWindowId() + "," + windowId.getWindowStartTimestamp() + "," + windowId.getWindowEndTimestamp());
+            this.windowPusher.sendMore(DistributedUtils.windowIdToString(windowId));
             this.windowPusher.send(partialAggregateBytes);
         }
     }

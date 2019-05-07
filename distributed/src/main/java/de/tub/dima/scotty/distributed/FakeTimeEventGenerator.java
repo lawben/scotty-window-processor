@@ -7,13 +7,17 @@ import org.zeromq.ZMQ;
  * Uses the random function to advance the timestamp of the events but not actual time. This is deterministic in the
  * creation of the events given rand with the same seed. Network-related code is not deterministic.
  */
-public class FakeTimeInputStream<T> extends InputStream<T> {
-    public FakeTimeInputStream(int streamId, InputStreamConfig<T> config, String nodeIp, int nodePort) {
-        super(streamId, config, nodeIp, nodePort);
+public class FakeTimeEventGenerator<T> implements EventGenerator<T> {
+    private final int streamId;
+    private final InputStreamConfig<T> config;
+
+    public FakeTimeEventGenerator(int streamId, InputStreamConfig<T> config) {
+        this.streamId = streamId;
+        this.config = config;
     }
 
     @Override
-    protected long generateAndSendEvents(InputStreamConfig<T> config, Random rand, ZMQ.Socket eventSender) {
+    public long generateAndSendEvents(Random rand, ZMQ.Socket eventSender) {
         int numRecordsProcessed = 0;
         long lastEventTimestamp = 0;
         while (numRecordsProcessed < config.numEventsToSend) {
@@ -35,3 +39,4 @@ public class FakeTimeInputStream<T> extends InputStream<T> {
         return lastEventTimestamp;
     }
 }
+

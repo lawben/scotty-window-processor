@@ -1,4 +1,6 @@
-package de.tub.dima.scotty.distributed;
+package de.tub.dima.scotty.distributed.executables;
+
+import de.tub.dima.scotty.distributed.DistributedChild;
 
 public class DistributedChildMain {
 

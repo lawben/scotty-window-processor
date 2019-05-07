@@ -1,17 +1,16 @@
-package de.tub.dima.scotty.distributed;
+package de.tub.dima.scotty.distributed.executables.single;
 
-import java.util.ArrayList;
+import de.tub.dima.scotty.distributed.DistributedUtils;
+import de.tub.dima.scotty.distributed.executables.InputStreamMain;
 import java.util.List;
-import java.util.Random;
 import java.util.stream.Collectors;
 
-public class DistributedMain {
+public class SingleMain {
     public static void main(String[] args) {
-        // good seed: 5051462193220963001
         if (args.length < 6) {
-            System.err.println("Not enough arguments!\nUsage: java ... "
-                    + "controllerPort "
-                    + "windowPort "
+            System.out.println("Not enough arguments!\nUsage: java ... "
+                    + "rootPort "
+                    + "resultPath "
                     + "streamPortStart "
                     + "numChildren "
                     + "numStreams "
@@ -20,8 +19,8 @@ public class DistributedMain {
             System.exit(1);
         }
 
-        final int rootControllerPort = Integer.parseInt(args[0]);
-        final int rootWindowPort = Integer.parseInt(args[1]);
+        final int rootPort = Integer.parseInt(args[0]);
+        final String resultPath = args[1];
         final int streamPort = Integer.parseInt(args[2]);
         final int numChildren = Integer.parseInt(args[3]);
         final int numStreams = Integer.parseInt(args[4]);
@@ -30,7 +29,7 @@ public class DistributedMain {
         System.out.println("Running with " + numChildren + " children, " + numStreams + " streams, and " +
                 numEvents + " events per stream.");
 
-        final List<Long> randomSeeds = getRandomSeeds(args, numStreams);
+        final List<Long> randomSeeds = DistributedUtils.getRandomSeeds(args, numStreams, 6);
         List<String> seedStrings = randomSeeds.stream().map(String::valueOf).collect(Collectors.toList());
         System.out.println("Using seeds: " + String.join(",", seedStrings));
 
@@ -40,34 +39,16 @@ public class DistributedMain {
             System.exit(1);
         }
 
-        DistributedRootMain.runRoot(rootControllerPort, rootWindowPort, numChildren);
+        SingleNodeMain.runSingleNode(rootPort, resultPath);
 
         for (int childId = 0; childId < numChildren; childId++) {
-            DistributedChildMain.runChild("localhost", rootControllerPort, rootWindowPort, streamPort + childId, childId);
+            EventForwarderMain.runForwarder("localhost", rootPort, streamPort + childId, childId);
         }
 
         for (int streamId = 0; streamId < numStreams; streamId++) {
             int assignedChild = streamId % numChildren;
             InputStreamMain.runInputStream("localhost", streamPort + assignedChild, numEvents, streamId, randomSeeds.get(streamId));
         }
-    }
 
-    private static List<Long> getRandomSeeds(String[] args, int numStreams) {
-        final List<Long> randomSeeds = new ArrayList<>();
-        if (args.length >= 7) {
-            String seedString = args[6];
-            String[] seedStringSplit = seedString.split(",");
-            assert seedStringSplit.length == numStreams;
-
-            for (String seed : seedStringSplit) {
-                randomSeeds.add(Long.valueOf(seed));
-            }
-        } else {
-            Random rand = new Random();
-            for (int i = 0; i < numStreams; i++) {
-                randomSeeds.add(rand.nextLong());
-            }
-        }
-        return randomSeeds;
     }
 }

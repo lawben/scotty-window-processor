@@ -4,11 +4,10 @@ import de.tub.dima.scotty.core.AggregateWindow;
 import de.tub.dima.scotty.core.WindowAggregateId;
 import de.tub.dima.scotty.core.windowFunction.ReduceAggregateFunction;
 import de.tub.dima.scotty.core.windowType.Window;
-import de.tub.dima.scotty.state.StateFactory;
 import de.tub.dima.scotty.state.memory.MemoryStateFactory;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.zeromq.SocketType;
 import org.zeromq.ZContext;
@@ -20,24 +19,31 @@ public class DistributedRoot implements Runnable {
     private final ZContext context;
     private final int controllerPort;
     private final int windowPort;
+    private final String resultPath;
     private ZMQ.Socket windowPuller;
+    private ZMQ.Socket resultPusher;
     private final int numChildren;
 
     // Slicing related
     private DistributedWindowMerger<Integer> windowMerger;
 
-    public DistributedRoot(int controllerPort, int windowPort, int numChildren) {
+    public DistributedRoot(int controllerPort, int windowPort, String resultPath, int numChildren) {
         this.controllerPort = controllerPort;
         this.windowPort = windowPort;
+        this.resultPath = resultPath;
         this.numChildren = numChildren;
 
         this.context = new ZContext();
+        this.windowPuller = this.context.createSocket(SocketType.PULL);
+        this.windowPuller.bind(DistributedUtils.buildLocalTcpUrl(this.windowPort));
+        this.resultPusher = this.context.createSocket(SocketType.PUSH);
+        this.resultPusher.connect(DistributedUtils.buildIpcUrl(this.resultPath));
     }
 
     @Override
     public void run() {
         System.out.println(this.rootString("Starting root worker with controller port " + this.controllerPort +
-                " and window port " + this.windowPort));
+                ", window port " + this.windowPort + " and result path " + this.resultPath));
 
         // 1. Wait for all children to register
         this.waitForChildren(this.numChildren);
@@ -47,11 +53,6 @@ public class DistributedRoot implements Runnable {
     }
 
     private void waitForPreAggregatedWindows() {
-        if (this.windowPuller == null) {
-            this.windowPuller = this.context.createSocket(SocketType.PULL);
-            this.windowPuller.bind(DistributedUtils.buildLocalTcpUrl(this.windowPort));
-        }
-
         ZMQ.Poller preAggregatedWindows = this.context.createPoller(1);
         preAggregatedWindows.register(this.windowPuller, Poller.POLLIN);
 
@@ -62,76 +63,73 @@ public class DistributedRoot implements Runnable {
                 System.out.println(this.rootString("No more data to come. Ending root worker..."));
                 return;
             }
-            if (preAggregatedWindows.pollin(0)) {
-                String childId = this.windowPuller.recvStr(ZMQ.DONTWAIT);
-                String rawAggregateWindowId = this.windowPuller.recvStr(ZMQ.DONTWAIT);
-                byte[] rawPreAggregatedResult = this.windowPuller.recv(ZMQ.DONTWAIT);
 
-                // WindowId
-                List<Long> windowIdSplit = stringToLongs(rawAggregateWindowId);
-                WindowAggregateId windowId = new WindowAggregateId(
-                        windowIdSplit.get(0), windowIdSplit.get(1), windowIdSplit.get(2));
+            String childId = this.windowPuller.recvStr(ZMQ.DONTWAIT);
+            String rawAggregateWindowId = this.windowPuller.recvStr(ZMQ.DONTWAIT);
+            byte[] rawPreAggregatedResult = this.windowPuller.recv(ZMQ.DONTWAIT);
 
-                // Partial Aggregate
-                Object partialAggregateObject = DistributedUtils.bytesToObject(rawPreAggregatedResult);
-                Integer partialAggregate = (Integer) partialAggregateObject;
+            WindowAggregateId windowId = DistributedUtils.stringToWindowId(rawAggregateWindowId);
 
-                boolean triggerFinal = this.windowMerger.processPreAggregate(partialAggregate, windowId);
+            // Partial Aggregate
+            Object partialAggregateObject = DistributedUtils.bytesToObject(rawPreAggregatedResult);
+            Integer partialAggregate = (Integer) partialAggregateObject;
+
+            Optional<AggregateWindow> maybeFinalWindow = processPreAggregateWindow(windowId, partialAggregate);
+            if (!maybeFinalWindow.isPresent()) {
+                continue;
+            }
+
+            AggregateWindow finalWindow = maybeFinalWindow.get();
+            List aggValues = finalWindow.getAggValues();
+            Object finalAggregate = aggValues.isEmpty() ? null : aggValues.get(0);
+            byte[] finalAggregateBytes = DistributedUtils.objectToBytes(finalAggregate);
+
+            this.resultPusher.sendMore(DistributedUtils.windowIdToString(windowId));
+            this.resultPusher.send(finalAggregateBytes);
+        }
+    }
+
+    public Optional<AggregateWindow> processPreAggregateWindow(WindowAggregateId windowId, Integer partialAggregate) {
+        boolean triggerFinal = this.windowMerger.processPreAggregate(partialAggregate, windowId);
 //                System.out.println(this.rootString("[" + childId + "] " + partialAggregate + " <-- pre-aggregated window " + windowId));
 
-                if (triggerFinal) {
-                    AggregateWindow finalWindow = this.windowMerger.triggerFinalWindow(windowId);
-                    if (finalWindow.getAggValues().isEmpty()) {
-                        System.out.println(this.rootString("EMPTY FINAL WINDOW!"));
-                    } else {
-                        System.out.println(this.rootString("FINAL WINDOW: " + finalWindow.getWindowAggregateId() +
-                                " --> " + finalWindow.getAggValues().get(0)));
-                    }
-                }
-            }
+        if (triggerFinal) {
+            AggregateWindow finalWindow = this.windowMerger.triggerFinalWindow(windowId);
+            return Optional.of(finalWindow);
         }
+
+        return Optional.empty();
     }
 
     private void waitForChildren(int numChildren) {
         ZMQ.Socket childReceiver = this.context.createSocket(SocketType.REP);
         childReceiver.bind(DistributedUtils.buildLocalTcpUrl(this.controllerPort));
 
-        ZMQ.Poller children = this.context.createPoller(1);
-        children.register(childReceiver, Poller.POLLIN);
-
 //        String[] windowStrings = {"SLIDING,100,50,2"};
         String[] windowStrings = {"TUMBLING,1000,1"};
 //        String[] windowStrings = {"TUMBLING,10000,1", "SLIDING,10000,5000,2"};
         final long WATERMARK_MS = 1000;
 
-        // Set up root the same way as the children will be set up.
-        final ReduceAggregateFunction<Integer> aggFn = DistributedUtils.aggregateFunction();
+        final ReduceAggregateFunction<Integer> aggFn = DistributedUtils.aggregateFunctionSum();
         List<Window> windows = Arrays.stream(windowStrings).map(DistributedUtils::buildWindowFromString).collect(Collectors.toList());
-        this.windowMerger = new DistributedWindowMerger<>(new MemoryStateFactory(), numChildren, windows, aggFn);
+
+        // Set up root the same way as the children will be set up.
+        setupWindowMerger(windows, aggFn);
 
         String completeWindowString = String.join("\n", windowStrings);
         int numChildrenRegistered = 0;
         while (numChildrenRegistered < numChildren) {
-            children.poll();
-
-            if (children.pollin(0)) {
                 String message = childReceiver.recvStr();
                 System.out.println(this.rootString("Received from child: " + message));
 
                 childReceiver.sendMore(String.valueOf(WATERMARK_MS));
                 childReceiver.send(completeWindowString);
                 numChildrenRegistered++;
-            }
         }
     }
 
-    private List<Long> stringToLongs(String rawString) {
-        String[] strings = rawString.split(",");
-        List<Long> longs = new ArrayList<>(strings.length);
-        for (String string : strings) {
-            longs.add(Long.valueOf(string));
-        }
-        return longs;
+    public void setupWindowMerger(List<Window> windows, ReduceAggregateFunction<Integer> aggFn) {
+        this.windowMerger = new DistributedWindowMerger<>(new MemoryStateFactory(), this.numChildren, windows, aggFn);
     }
 
     private String rootString(String msg) {

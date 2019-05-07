@@ -1,5 +1,11 @@
-package de.tub.dima.scotty.distributed;
+package de.tub.dima.scotty.distributed.executables;
 
+import de.tub.dima.scotty.distributed.DistributedChild;
+import de.tub.dima.scotty.distributed.EventGenerator;
+import de.tub.dima.scotty.distributed.InputStream;
+import de.tub.dima.scotty.distributed.InputStreamConfig;
+import de.tub.dima.scotty.distributed.SleepEventGenerator;
+import de.tub.dima.scotty.distributed.single.SingleInputStream;
 import java.util.Random;
 import java.util.function.Function;
 
@@ -20,12 +26,14 @@ public class InputStreamMain {
     }
 
     public static void runInputStream(String nodeIp, int nodePort, int numEvents, int streamId, long randomSeed) {
-        Function<Random, Integer> eventGenerator = (rand) -> rand.nextInt(100);
+        Function<Random, Integer> valueGenerator = (rand) -> rand.nextInt(100);
 
+        long startTime = System.currentTimeMillis() + DistributedChild.STREAM_REGISTER_TIMEOUT_MS * 2;
         InputStreamConfig<Integer> config =
-                new InputStreamConfig<>(numEvents, 10, 100, System.currentTimeMillis(), eventGenerator, randomSeed);
+                new InputStreamConfig<>(numEvents, 1, 10, startTime, valueGenerator, randomSeed);
 
-        InputStream<Integer> stream = new ThroughputInputStream<>(streamId, config, nodeIp, nodePort);
+        EventGenerator<Integer> eventGenerator = new SleepEventGenerator<>(streamId, config);
+        InputStream<Integer> stream = new SingleInputStream<>(streamId, config, nodeIp, nodePort, eventGenerator);
         Thread thread = new Thread(stream);
         thread.start();
     }
