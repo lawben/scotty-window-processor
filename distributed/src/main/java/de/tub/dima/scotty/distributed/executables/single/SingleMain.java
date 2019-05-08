@@ -47,7 +47,8 @@ public class SingleMain {
 
         for (int streamId = 0; streamId < numStreams; streamId++) {
             int assignedChild = streamId % numChildren;
-            InputStreamMain.runInputStream("localhost", streamPort + assignedChild, numEvents, streamId, randomSeeds.get(streamId));
+            InputStreamMain.runInputStream("localhost", streamPort + assignedChild, numEvents, streamId,
+                    randomSeeds.get(streamId), /*isDistributed=*/false);
         }
 
     }
