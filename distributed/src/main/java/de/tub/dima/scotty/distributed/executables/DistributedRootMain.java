@@ -17,7 +17,7 @@ public class DistributedRootMain {
         runRoot(rootControllerPort, rootWindowPort, rootResultPath, numChildren);
     }
 
-    public static void runRoot(int controllerPort, int windowPort, String resultPath, int numChildren) {
+    public static Thread runRoot(int controllerPort, int windowPort, String resultPath, int numChildren) {
         ResultListener resultListener = new ResultListener(resultPath);
         Thread resultThread = new Thread(resultListener);
         resultThread.start();
@@ -25,5 +25,6 @@ public class DistributedRootMain {
         DistributedRoot worker = new DistributedRoot(controllerPort, windowPort, resultPath, numChildren);
         Thread rootThread = new Thread(worker);
         rootThread.start();
+        return rootThread;
     }
 }

@@ -27,11 +27,11 @@ public class InputStreamMain {
         runInputStream(nodeIp, nodePort, numEvents, streamId, randomSeed);
     }
 
-    public static void runInputStream(String nodeIp, int nodePort, int numEvents, int streamId, long randomSeed) {
-        runInputStream(nodeIp, nodePort, numEvents, streamId, randomSeed, /*isDistributed=*/true);
+    public static Thread runInputStream(String nodeIp, int nodePort, int numEvents, int streamId, long randomSeed) {
+        return runInputStream(nodeIp, nodePort, numEvents, streamId, randomSeed, /*isDistributed=*/true);
     }
 
-    public static void runInputStream(String nodeIp, int nodePort, int numEvents, int streamId, long randomSeed, boolean isDistributed) {
+    public static Thread runInputStream(String nodeIp, int nodePort, int numEvents, int streamId, long randomSeed, boolean isDistributed) {
         Function<Random, Integer> valueGenerator = (rand) -> rand.nextInt(100);
 
         long startTime = System.currentTimeMillis() + DistributedChild.STREAM_REGISTER_TIMEOUT_MS * 2;
@@ -47,5 +47,6 @@ public class InputStreamMain {
 
         Thread thread = new Thread(stream);
         thread.start();
+        return thread;
     }
 }

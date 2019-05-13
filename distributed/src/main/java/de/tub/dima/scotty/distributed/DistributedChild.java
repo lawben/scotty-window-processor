@@ -26,18 +26,16 @@ public class DistributedChild implements Runnable {
     private final ZContext context;
 
     private ZMQ.Socket windowPusher;
-    final static int STREAM_REGISTER_PORT_OFFSET = 100;
+    public final static int STREAM_REGISTER_PORT_OFFSET = 100;
     public final static long STREAM_REGISTER_TIMEOUT_MS = 1500;
 
     private final static long STREAM_INPUT_TIMEOUT_MS = 3 * 1000;
 
     // Slicing related
-//    private final DistributedChildSlicer<Integer> slicer;
     private final Map<Integer, DistributedChildSlicer<Integer>> slicerPerStream;
     private int numStreams;
     private DistributedWindowMerger<Integer> streamWindowMerger;
 
-//    private static final long WATERMARK_DURATION_MS = 1000;
     private long watermarkMs;
 
 
@@ -137,7 +135,7 @@ public class DistributedChild implements Runnable {
             long eventTimestamp = Long.valueOf(streamInput.recvStr(ZMQ.DONTWAIT));
             Object eventValue = DistributedUtils.bytesToObject(streamInput.recv(ZMQ.DONTWAIT));
 
-            DistributedChildSlicer<Integer> perStreamSlicer = slicerPerStream.get(streamId);
+            DistributedChildSlicer<Integer> perStreamSlicer = this.slicerPerStream.get(streamId);
             perStreamSlicer.processElement(perStreamSlicer.castFromObject(eventValue), eventTimestamp);
             currentEventTime = eventTimestamp;
             numEvents++;
@@ -146,7 +144,6 @@ public class DistributedChild implements Runnable {
             // If we haven't processed a watermark in watermarkMs milliseconds, process it.
             final long watermarkTimestamp = lastWatermark + this.watermarkMs;
             if (currentEventTime >= watermarkTimestamp) {
-//                System.out.println(this.forwardIdString("Processing watermark " + watermarkTimestamp));
                 this.processWatermarkedWindows(watermarkTimestamp);
                 lastWatermark = watermarkTimestamp;
             }
@@ -156,8 +153,8 @@ public class DistributedChild implements Runnable {
     private void processWatermarkedWindows(long watermarkTimestamp) {
         this.slicerPerStream.forEach((streamId, slicer) -> {
             List<AggregateWindow> preAggregatedWindows = slicer.processWatermark(watermarkTimestamp);
-            List<AggregateWindow> finalPreWAggregateWindows = this.mergeStreamWindows(preAggregatedWindows);
-            this.sendPreAggregatedWindowsToRoot(finalPreWAggregateWindows);
+            List<AggregateWindow> finalPreAggregateWindows = this.mergeStreamWindows(preAggregatedWindows);
+            this.sendPreAggregatedWindowsToRoot(finalPreAggregateWindows);
         });
     }
 

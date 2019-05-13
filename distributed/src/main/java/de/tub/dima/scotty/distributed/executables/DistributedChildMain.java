@@ -19,9 +19,10 @@ public class DistributedChildMain {
         runChild(rootIp, rootControllerPort, rootWindowPort, streamPort, childId);
     }
 
-    public static void runChild(String rootIp, int rootControllerPort, int rootWindowPort, int streamPort, int childId) {
+    public static Thread runChild(String rootIp, int rootControllerPort, int rootWindowPort, int streamPort, int childId) {
         DistributedChild worker = new DistributedChild(rootIp, rootControllerPort, rootWindowPort, streamPort, childId);
         Thread thread = new Thread(worker);
         thread.start();
+        return thread;
     }
 }
