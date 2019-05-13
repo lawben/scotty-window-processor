@@ -4,10 +4,8 @@ import de.tub.dima.scotty.distributed.DistributedChild;
 import de.tub.dima.scotty.distributed.EventGenerator;
 import de.tub.dima.scotty.distributed.InputStream;
 import de.tub.dima.scotty.distributed.InputStreamConfig;
-import de.tub.dima.scotty.distributed.SleepEventGenerator;
-import de.tub.dima.scotty.distributed.ThrouhputEventGenerator;
+import de.tub.dima.scotty.distributed.ThroughputEventGenerator;
 import de.tub.dima.scotty.distributed.single.SingleInputStream;
-import java.lang.reflect.Constructor;
 import java.util.Random;
 import java.util.function.Function;
 
@@ -38,7 +36,7 @@ public class InputStreamMain {
         InputStreamConfig<Integer> config =
                 new InputStreamConfig<>(numEvents, 1, 10, startTime, valueGenerator, randomSeed);
 
-        EventGenerator<Integer> eventGenerator = new ThrouhputEventGenerator<>(streamId, config);
+        EventGenerator<Integer> eventGenerator = new ThroughputEventGenerator<>(streamId, config);
 
         InputStream<Integer> stream = new InputStream<>(streamId, config, nodeIp, nodePort, eventGenerator);
         if (!isDistributed) {

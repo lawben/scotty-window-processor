@@ -6,14 +6,14 @@ import org.zeromq.ZMQ;
 /**
  * Creates as many events as possible with natural time.
  */
-public class ThrouhputEventGenerator<T> extends SleepEventGenerator<T> {
+final public class ThroughputEventGenerator<T> extends SleepEventGenerator<T> {
 
-    public ThrouhputEventGenerator(int streamId, InputStreamConfig<T> config) {
+    public ThroughputEventGenerator(int streamId, InputStreamConfig<T> config) {
         super(streamId, config);
     }
 
     @Override
-    protected void doSleep(int minSleep, int maxSleep, Random rand) {
+    final protected void doSleep(int minSleep, int maxSleep, Random rand) {
         // Do nothing
     }
 }
