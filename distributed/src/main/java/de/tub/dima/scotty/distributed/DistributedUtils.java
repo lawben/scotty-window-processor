@@ -18,6 +18,10 @@ import java.util.Random;
 public class DistributedUtils {
 
     public static byte[] objectToBytes(Object object) {
+        if (object instanceof Integer) {
+            return integerToByte((Integer) object);
+        }
+
         try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
             ObjectOutputStream out = new ObjectOutputStream(bos);
             out.writeObject(object);
@@ -29,7 +33,21 @@ public class DistributedUtils {
         return new byte[]{0};
     }
 
+    public static byte[] integerToByte(int i) {
+        return new byte[]{
+            (byte)(i >>> 24),
+            (byte)(i >>> 16),
+            (byte)(i >>> 8),
+            (byte)i
+        };
+    }
+
     public static Object bytesToObject(byte[] bytes) {
+        if (bytes.length == 4) {
+            // Is integer
+            int value = bytes[0] << 24 | (bytes[1] & 0xFF) << 16 | (bytes[2] & 0xFF) << 8 | (bytes[3] & 0xFF);
+            return value;
+        }
         try (ByteArrayInputStream bis = new ByteArrayInputStream(bytes)) {
             ObjectInputStream in = new ObjectInputStream(bis);
             return in.readObject();
