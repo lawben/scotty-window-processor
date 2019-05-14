@@ -29,7 +29,7 @@ public class DistributedChild implements Runnable {
     public final static int STREAM_REGISTER_PORT_OFFSET = 100;
     public final static long STREAM_REGISTER_TIMEOUT_MS = 1500;
 
-    private final static long STREAM_INPUT_TIMEOUT_MS = 3 * 1000;
+    private final static int STREAM_INPUT_TIMEOUT_MS = 3 * 1000;
 
     // Slicing related
     private final Map<Integer, DistributedChildSlicer<Integer>> slicerPerStream;
@@ -111,10 +111,8 @@ public class DistributedChild implements Runnable {
 
     private void processStreams() {
         ZMQ.Socket streamInput = this.context.createSocket(SocketType.PULL);
+        streamInput.setReceiveTimeOut(STREAM_INPUT_TIMEOUT_MS);
         streamInput.bind(DistributedUtils.buildLocalTcpUrl(this.streamInputPort));
-
-        ZMQ.Poller streamPoller = this.context.createPoller(1);
-        streamPoller.register(streamInput, Poller.POLLIN);
 
         System.out.println(this.childIdString("Waiting for stream data."));
 
@@ -123,7 +121,9 @@ public class DistributedChild implements Runnable {
         long numEvents = 0;
 
         while (!Thread.currentThread().isInterrupted()) {
-            if (streamPoller.poll(STREAM_INPUT_TIMEOUT_MS) == 0) {
+            String rawId = streamInput.recvStr();
+            if (rawId == null) {
+                assert streamInput.errno() == ZMQ.Error.EAGAIN.getCode();
                 System.out.println(this.childIdString("Processed " + numEvents + " events in total."));
                 final long watermarkTimestamp = currentEventTime + this.watermarkMs;
                 this.processWatermarkedWindows(watermarkTimestamp);
@@ -131,7 +131,7 @@ public class DistributedChild implements Runnable {
                 return;
             }
 
-            int streamId = Integer.parseInt(streamInput.recvStr(ZMQ.DONTWAIT));
+            int streamId = Integer.parseInt(rawId);
             long eventTimestamp = Long.valueOf(streamInput.recvStr(ZMQ.DONTWAIT));
             Object eventValue = DistributedUtils.bytesToObject(streamInput.recv(ZMQ.DONTWAIT));
 

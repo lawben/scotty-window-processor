@@ -12,7 +12,6 @@ import java.util.stream.Collectors;
 import org.zeromq.SocketType;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
-import org.zeromq.ZMQ.Poller;
 
 public class DistributedRoot implements Runnable {
     // Network related
@@ -53,18 +52,17 @@ public class DistributedRoot implements Runnable {
     }
 
     private void waitForPreAggregatedWindows() {
-        ZMQ.Poller preAggregatedWindows = this.context.createPoller(1);
-        preAggregatedWindows.register(this.windowPuller, Poller.POLLIN);
-
-        final long pollTimeout = 10 * 1000;
+        final int pollTimeout = 10 * 1000;
+        this.windowPuller.setReceiveTimeOut(pollTimeout);
         while (!Thread.currentThread().isInterrupted()) {
-            if (preAggregatedWindows.poll(pollTimeout) == 0) {
+            String childId;
+            if ((childId = this.windowPuller.recvStr()) == null) {
+                assert this.windowPuller.errno() == ZMQ.Error.EAGAIN.getCode();
                 // Timed out --> quit
                 System.out.println(this.rootString("No more data to come. Ending root worker..."));
                 return;
             }
 
-            String childId = this.windowPuller.recvStr(ZMQ.DONTWAIT);
             String rawAggregateWindowId = this.windowPuller.recvStr(ZMQ.DONTWAIT);
             byte[] rawPreAggregatedResult = this.windowPuller.recv(ZMQ.DONTWAIT);
 
@@ -91,8 +89,6 @@ public class DistributedRoot implements Runnable {
 
     public Optional<AggregateWindow> processPreAggregateWindow(WindowAggregateId windowId, Integer partialAggregate) {
         boolean triggerFinal = this.windowMerger.processPreAggregate(partialAggregate, windowId);
-//                System.out.println(this.rootString("[" + childId + "] " + partialAggregate + " <-- pre-aggregated window " + windowId));
-
         if (triggerFinal) {
             AggregateWindow finalWindow = this.windowMerger.triggerFinalWindow(windowId);
             return Optional.of(finalWindow);
