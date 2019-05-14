@@ -16,7 +16,7 @@ public class SingleNodeMain {
         runSingleNode(rootPort, resultPath);
     }
 
-    public static void runSingleNode(int rootPort, String resultPath) {
+    public static Thread runSingleNode(int rootPort, String resultPath) {
         ResultListener resultListener = new ResultListener(resultPath);
         Thread resultThread = new Thread(resultListener);
         resultThread.start();
@@ -24,5 +24,6 @@ public class SingleNodeMain {
         SingleNode worker = new SingleNode(rootPort, resultPath);
         Thread thread = new Thread(worker);
         thread.start();
+        return thread;
     }
 }

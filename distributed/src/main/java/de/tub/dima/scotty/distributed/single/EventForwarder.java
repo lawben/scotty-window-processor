@@ -12,7 +12,7 @@ public class EventForwarder implements Runnable {
     private final int streamInputPort;
     private final int childId;
 
-    private final static long TIMEOUT_MS = 10 * 1000;
+    private final static int TIMEOUT_MS = 10 * 1000;
 
     public EventForwarder(String rootIp, int rootPort, int streamInputPort, int childId) {
         this.rootIp = rootIp;
@@ -36,20 +36,21 @@ public class EventForwarder implements Runnable {
             System.out.println(this.forwardIdString("Starting proxy"));
 
             while (!Thread.currentThread().isInterrupted()) {
-                if (inputPoller.poll(TIMEOUT_MS) == 0) {
+                // Receive
+                String streamId = streamInput.recvStr();
+                if (streamId == null) {
+                    assert streamInput.errno() == ZMQ.Error.EAGAIN.getCode();
                     // Timed out --> quit
                     System.out.println(this.forwardIdString("No more data. Shutting down..."));
                     return;
                 }
 
-                // Receive
-                String streamId = streamInput.recvStr();
                 String eventTimestamp = streamInput.recvStr();
                 byte[] eventValueBytes = streamInput.recv();
 
                 // Forward
-                streamOutput.sendMore(String.valueOf(streamId));
-                streamOutput.sendMore(String.valueOf(eventTimestamp));
+                streamOutput.sendMore(streamId);
+                streamOutput.sendMore(eventTimestamp);
                 streamOutput.send(eventValueBytes);
             }
 
