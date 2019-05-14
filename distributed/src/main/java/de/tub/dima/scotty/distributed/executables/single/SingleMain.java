@@ -27,7 +27,11 @@ public class SingleMain {
         final int numStreams = Integer.parseInt(args[4]);
         final int numEvents = Integer.parseInt(args[5]);
 
-        Process tshark = TsharkRunner.startTshark(rootPort, rootPort, streamPort, numChildren, numStreams, numEvents);
+        Process tshark = TsharkRunner.startTshark(rootPort, rootPort, streamPort,
+                numChildren, numStreams, numEvents, "single");
+
+        // Let tshark start
+        Thread.sleep(2000);
 
         System.out.println("Running with " + numChildren + " children, " + numStreams + " streams, and " +
                 numEvents + " events per stream.");

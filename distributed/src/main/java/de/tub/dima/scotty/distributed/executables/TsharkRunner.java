@@ -14,12 +14,13 @@ public class TsharkRunner {
     private static final String TSHARK_PORT_TEMPLATE = "tcp port %d || tcp port %d || tcp portrange %d-%d || tcp portrange %d-%d";
 
 
-    public static Process startTshark(int rootControllerPort, int rootWindowPort, int streamPort, int numChildren, int numStreams, int numEvents)
-            throws IOException {
+    public static Process startTshark(int rootControllerPort, int rootWindowPort, int streamPort,
+                                      int numChildren, int numStreams, int numEvents, String filePrefix) throws IOException {
         final int streamRegisterPort = streamPort + DistributedChild.STREAM_REGISTER_PORT_OFFSET;
         final String networkInterface = "lo0";
         Instant runTimestamp = Instant.ofEpochMilli(System.currentTimeMillis());
-        final String tsharkOutputFile = String.format("/Users/law/repos/ma/runs-scotty/dist-run-%d-%d-%d-%s.pcap", numChildren, numStreams, numEvents, runTimestamp);
+        final String tsharkOutputFile = String.format("/Users/law/repos/ma/runs-scotty/%s-run-%d-%d-%d-%s.pcap",
+                filePrefix, numChildren, numStreams, numEvents, runTimestamp);
 
         String tsharkPortString = String.format(TSHARK_PORT_TEMPLATE, rootControllerPort, rootWindowPort, streamPort,
                 streamPort + 10, streamRegisterPort, streamRegisterPort + 10);

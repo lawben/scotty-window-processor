@@ -27,7 +27,11 @@ public class DistributedMain {
         final int numStreams = Integer.parseInt(args[5]);
         final int numEvents = Integer.parseInt(args[6]);
 
-        Process tshark = TsharkRunner.startTshark(rootControllerPort, rootWindowPort, streamPort, numChildren, numStreams, numEvents);
+        Process tshark = TsharkRunner.startTshark(rootControllerPort, rootWindowPort, streamPort,
+                numChildren, numStreams, numEvents, "dist");
+
+        // Let tshark start
+        Thread.sleep(2000);
 
         System.out.println("Running with " + numChildren + " children, " + numStreams + " streams, and " +
                 numEvents + " events per stream.");
