@@ -6,8 +6,10 @@ import de.tub.dima.scotty.core.windowFunction.ReduceAggregateFunction;
 import de.tub.dima.scotty.core.windowType.Window;
 import de.tub.dima.scotty.state.memory.MemoryStateFactory;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.zeromq.SocketType;
 import org.zeromq.ZContext;
@@ -22,6 +24,7 @@ public class DistributedRoot implements Runnable {
     private ZMQ.Socket windowPuller;
     private ZMQ.Socket resultPusher;
     private final int numChildren;
+    Set<Integer> childStreamEnds;
 
     // Slicing related
     private DistributedWindowMerger<Integer> windowMerger;
@@ -31,6 +34,8 @@ public class DistributedRoot implements Runnable {
         this.windowPort = windowPort;
         this.resultPath = resultPath;
         this.numChildren = numChildren;
+
+        this.childStreamEnds = new HashSet<>(this.numChildren);
 
         this.context = new ZContext();
         this.windowPuller = this.context.createSocket(SocketType.PULL);
@@ -52,17 +57,23 @@ public class DistributedRoot implements Runnable {
     }
 
     private void waitForPreAggregatedWindows() {
-        final int pollTimeout = 10 * 1000;
-        this.windowPuller.setReceiveTimeOut(pollTimeout);
         while (!Thread.currentThread().isInterrupted()) {
-            String childId;
-            if ((childId = this.windowPuller.recvStr()) == null) {
-                assert this.windowPuller.errno() == ZMQ.Error.EAGAIN.getCode();
-                // Timed out --> quit
-                System.out.println(this.rootString("No more data to come. Ending root worker..."));
-                return;
+            String childIdOrStreamEnd = this.windowPuller.recvStr();
+
+            if (childIdOrStreamEnd.equals(DistributedUtils.STREAM_END)) {
+                int childId = Integer.valueOf(this.windowPuller.recvStr(ZMQ.DONTWAIT));
+                System.out.println(this.rootString("Stream end from " + childId));
+                this.childStreamEnds.add(childId);
+                if (this.childStreamEnds.size() == this.numChildren) {
+                    System.out.println(this.rootString("Received all stream ends. Shutting down root..."));
+                    this.resultPusher.send(DistributedUtils.STREAM_END);
+                    return;
+                }
+
+                continue;
             }
 
+            // System.out.println(this.rootString("Received from " + childId));
             String rawAggregateWindowId = this.windowPuller.recvStr(ZMQ.DONTWAIT);
             byte[] rawPreAggregatedResult = this.windowPuller.recv(ZMQ.DONTWAIT);
 
@@ -82,6 +93,7 @@ public class DistributedRoot implements Runnable {
             Object finalAggregate = aggValues.isEmpty() ? null : aggValues.get(0);
             byte[] finalAggregateBytes = DistributedUtils.objectToBytes(finalAggregate);
 
+            // System.out.println(this.rootString("Sending result for " + windowId));
             this.resultPusher.sendMore(DistributedUtils.windowIdToString(windowId));
             this.resultPusher.send(finalAggregateBytes);
         }

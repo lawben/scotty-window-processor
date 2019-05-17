@@ -31,7 +31,7 @@ public class DistributedMain {
                 numChildren, numStreams, numEvents, "dist");
 
         // Let tshark start
-        Thread.sleep(2000);
+//        Thread.sleep(2000);
 
         System.out.println("Running with " + numChildren + " children, " + numStreams + " streams, and " +
                 numEvents + " events per stream.");

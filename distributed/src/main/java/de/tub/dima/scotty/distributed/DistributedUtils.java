@@ -17,6 +17,8 @@ import java.util.Random;
 
 public class DistributedUtils {
 
+    public final static String STREAM_END = "STREAM_END";
+
     public static byte[] objectToBytes(Object object) {
         if (object instanceof Integer) {
             return integerToByte((Integer) object);

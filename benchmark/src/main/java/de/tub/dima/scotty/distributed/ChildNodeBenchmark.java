@@ -12,29 +12,22 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
-import org.openjdk.jmh.annotations.TearDown;
+import org.openjdk.jmh.infra.Blackhole;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
-import org.zeromq.SocketType;
-import org.zeromq.ZContext;
-import org.zeromq.ZMQ;
 
 @State(Scope.Benchmark)
-public class DistributedBenchmark {
+public class ChildNodeBenchmark {
     List<Window> windows;
     ReduceAggregateFunction<Integer> aggFn;
 
-    private DistributedWindowMerger<Integer> windowMerger;
-    private DistributedRoot root;
-    private int numChildren = 100;
     long counter;
     private Map<Integer, DistributedChildSlicer<Integer>> slicerPerStream;
     private DistributedWindowMerger<Integer> streamWindowMerger;
@@ -42,91 +35,14 @@ public class DistributedBenchmark {
     private long lastWatermark;
     private long watermarkMs;
 
-    ZMQ.Socket pusher;
-    ZMQ.Socket pusher2;
-    ZMQ.Socket puller;
-    ZMQ.Socket puller2;
-    ZContext zContext;
-    byte[] bytes;
-
     @Setup(Level.Iteration)
-    public void setupIteration()  {
+    public void setupIteration() {
         windows = Collections.singletonList(new TumblingWindow(WindowMeasure.Time, 100, 1));
         aggFn = DistributedUtils.aggregateFunctionSum();
-        windowMerger = new DistributedWindowMerger<>(new MemoryStateFactory(), 1, windows, aggFn);
-
-        root = new DistributedRoot(0, 0, "/tmp/bench-res", numChildren);
-        root.setupWindowMerger(windows, aggFn);
-
         counter = 0;
         watermarkMs = 100;
 
         setupChildRun();
-//        setupNetworkRun();
-    }
-
-    @Setup(Level.Trial)
-    public void setupTrial() {
-        Integer value = 10;
-        bytes = DistributedUtils.objectToBytes(value);
-        setupNetworkPushRun();
-    }
-
-    @TearDown(Level.Trial)
-    public void tearDownTrial() {
-        pusher.close();
-        puller.close();
-        zContext.destroy();
-    }
-
-    private void setupNetworkPushRun() {
-        zContext = new ZContext();
-        pusher = zContext.createSocket(SocketType.PUSH);
-        puller = zContext.createSocket(SocketType.PULL);
-        puller.setReceiveTimeOut(10 * 1000);
-
-        int port = new Random().nextInt(64000) + 1000;
-        System.out.println("Using port " + port);
-        puller.bind("tcp://0.0.0.0:" + port);
-        pusher.connect("tcp://localhost:" + port);
-
-        Thread thread = new Thread(() -> {
-            while (true) {
-                puller.recvStr();
-                puller.recvStr(ZMQ.DONTWAIT);
-                puller.recv();
-//                Object value = DistributedUtils.bytesToObject(puller.recv(ZMQ.DONTWAIT));
-            }
-        });
-        thread.start();
-    }
-
-
-    private void setupNetworkPullRun() {
-        zContext = new ZContext();
-        pusher = zContext.createSocket(SocketType.PUSH);
-        puller = zContext.createSocket(SocketType.PULL);
-
-        int port = new Random().nextInt(64000) + 1000;
-        System.out.println("Using port " + port);
-        puller.bind("tcp://0.0.0.0:" + port);
-        pusher.connect("tcp://localhost:" + port);
-
-        Thread thread = new Thread(() -> {
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            while (true) {
-                Integer value = 10;
-                pusher.sendMore(String.valueOf(0));
-                pusher.sendMore(String.valueOf(1000));
-//        pusher.sendMore(bytes);
-                pusher.send(DistributedUtils.objectToBytes(value));
-            }
-        });
-        thread.start();
     }
 
     public void setupChildRun() {
@@ -146,26 +62,7 @@ public class DistributedBenchmark {
     }
 
     @Benchmark()
-    public void benchmarkZMQPush() {
-        Integer value = 10;
-        pusher.sendMore(String.valueOf(0));
-        pusher.sendMore(String.valueOf(1000));
-//        pusher.sendMore(bytes);
-        pusher.send(DistributedUtils.objectToBytes(value));
-    }
-
-//    @Benchmark()
-    public void benchmarkZMQPull() {
-        puller.recvStr(ZMQ.DONTWAIT);
-        puller.recvStr(ZMQ.DONTWAIT);
-//        puller.recv();
-        Object value = DistributedUtils.bytesToObject(puller.recv(ZMQ.DONTWAIT));
-    }
-
-
-
-//    @Benchmark()
-    public void benchmarkChildProcessing() {
+    public void benchmarkChildProcessing(Blackhole bh) {
         // Process event
         int streamId = (int) (counter % numStreams);
         long eventTimestamp = counter;
@@ -187,22 +84,22 @@ public class DistributedBenchmark {
                 boolean finalTrigger = streamWindowMerger.processPreAggregate(partialAggregate, windowId);
 
                 if (finalTrigger) {
-//                System.out.println(this.forwardIdString("Trigger in merge for " + windowId));
                     AggregateWindow<Integer> finalPreAggregateWindow = streamWindowMerger.triggerFinalWindow(windowId);
                     finalPreAggregateWindows.add(finalPreAggregateWindow);
                 }
             }
             lastWatermark = watermarkTimestamp;
+            bh.consume(finalPreAggregateWindows);
         }
 
         counter++;
+        bh.consume(lastWatermark);
     }
 
 
     public static void main(String[] args) throws RunnerException {
-
         Options opt = new OptionsBuilder()
-                .include(DistributedBenchmark.class.getName())
+                .include(ChildNodeBenchmark.class.getName())
                 .forks(1)
                 .warmupIterations(10)
                 .measurementIterations(10)

@@ -1,6 +1,7 @@
 package de.tub.dima.scotty.distributed;
 
 import java.util.Random;
+import java.util.function.Function;
 import org.zeromq.ZMQ;
 
 /**
@@ -21,15 +22,15 @@ public class SleepEventGenerator<T> implements EventGenerator<T> {
         int numRecordsProcessed = 0;
         long lastEventTimestamp = 0;
         long startTime = config.startTimestamp;
+        final Function<Random, T> eventGenerator = config.generatorFunction;
         while (numRecordsProcessed < config.numEventsToSend) {
             this.doSleep(config.minWaitTimeMillis, config.maxWaitTimeMillis, rand);
 
             long eventTimestamp = System.currentTimeMillis() - startTime;
-            T eventValue = config.generatorFunction.apply(rand);
+            Integer eventValue = (Integer) eventGenerator.apply(rand);
 
-            eventSender.sendMore(String.valueOf(this.streamId));
-            eventSender.sendMore(String.valueOf(eventTimestamp));
-            eventSender.send(DistributedUtils.objectToBytes(eventValue));
+            String msg = String.valueOf(this.streamId) + ',' + eventTimestamp + ',' + eventValue;
+            eventSender.send(msg, ZMQ.DONTWAIT);
 
             numRecordsProcessed++;
             lastEventTimestamp = eventTimestamp;

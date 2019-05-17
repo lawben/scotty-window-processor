@@ -7,8 +7,10 @@ import de.tub.dima.scotty.core.windowType.Window;
 import de.tub.dima.scotty.state.memory.MemoryStateFactory;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.zeromq.SocketType;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
@@ -27,9 +29,7 @@ public class DistributedChild implements Runnable {
 
     private ZMQ.Socket windowPusher;
     public final static int STREAM_REGISTER_PORT_OFFSET = 100;
-    public final static long STREAM_REGISTER_TIMEOUT_MS = 1500;
-
-    private final static int STREAM_INPUT_TIMEOUT_MS = 3 * 1000;
+    public final static long STREAM_REGISTER_TIMEOUT_MS = 8 * 1000;
 
     // Slicing related
     private final Map<Integer, DistributedChildSlicer<Integer>> slicerPerStream;
@@ -37,6 +37,7 @@ public class DistributedChild implements Runnable {
     private DistributedWindowMerger<Integer> streamWindowMerger;
 
     private long watermarkMs;
+    private Set<Integer> streamEnds;
 
 
     public DistributedChild(String rootIp, int rootControllerPort, int rootWindowPort, int streamInputPort, int childId) {
@@ -59,7 +60,7 @@ public class DistributedChild implements Runnable {
 
         // 1. connect to root server
         // 1.1. receive commands from root (i.e. windows, agg. functions, etc.)
-        List<Window> windows = this.getWindowsFromRoot();
+        List<Window> windows = this.registerAtRoot();
 
         if (windows.isEmpty()) {
             throw new RuntimeException(this.childIdString("Did not receive any windows from root!"));
@@ -67,6 +68,7 @@ public class DistributedChild implements Runnable {
 
         // 2. register streams
         this.registerStreams(STREAM_REGISTER_TIMEOUT_MS, windows);
+        this.streamEnds = new HashSet<>(this.numStreams);
 
         // 3. process streams
         // 4. send windows to root
@@ -90,6 +92,7 @@ public class DistributedChild implements Runnable {
         while (!Thread.currentThread().isInterrupted()) {
             if (streams.poll(timeout) == 0) {
                 // Timed out --> all streams registered
+                System.out.println("Registered all streams.");
                 this.streamWindowMerger = new DistributedWindowMerger<>(stateFactory, this.numStreams, windows, aggFn);
                 return;
             }
@@ -111,9 +114,7 @@ public class DistributedChild implements Runnable {
 
     private void processStreams() {
         ZMQ.Socket streamInput = this.context.createSocket(SocketType.PULL);
-        streamInput.setReceiveTimeOut(STREAM_INPUT_TIMEOUT_MS);
         streamInput.bind(DistributedUtils.buildLocalTcpUrl(this.streamInputPort));
-
         System.out.println(this.childIdString("Waiting for stream data."));
 
         long currentEventTime = 0;
@@ -121,19 +122,28 @@ public class DistributedChild implements Runnable {
         long numEvents = 0;
 
         while (!Thread.currentThread().isInterrupted()) {
-            String rawId = streamInput.recvStr();
-            if (rawId == null) {
-                assert streamInput.errno() == ZMQ.Error.EAGAIN.getCode();
-                System.out.println(this.childIdString("Processed " + numEvents + " events in total."));
-                final long watermarkTimestamp = currentEventTime + this.watermarkMs;
-                this.processWatermarkedWindows(watermarkTimestamp);
-                System.out.println(this.childIdString("No more data to come. Ending child worker..."));
-                return;
+            String streamIdOrStreamEnd = streamInput.recvStr();
+            if (streamIdOrStreamEnd.equals(DistributedUtils.STREAM_END)) {
+                int streamId = Integer.valueOf(streamInput.recvStr(ZMQ.DONTWAIT));
+                System.out.println(this.childIdString("Stream end from " + streamId));
+                this.streamEnds.add(streamId);
+                if (this.streamEnds.size() == this.numStreams) {
+                    System.out.println(this.childIdString("Processed " + numEvents + " events in total."));
+                    final long watermarkTimestamp = currentEventTime + this.watermarkMs;
+                    this.processWatermarkedWindows(watermarkTimestamp);
+                    System.out.println(this.childIdString("No more data to come. Ending child worker..."));
+                    this.windowPusher.sendMore(DistributedUtils.STREAM_END);
+                    this.windowPusher.send(String.valueOf(this.childId));
+                    return;
+                }
+
+                continue;
             }
 
-            int streamId = Integer.parseInt(rawId);
-            long eventTimestamp = Long.valueOf(streamInput.recvStr(ZMQ.DONTWAIT));
-            Object eventValue = DistributedUtils.bytesToObject(streamInput.recv(ZMQ.DONTWAIT));
+            String[] eventParts = streamIdOrStreamEnd.split(",");
+            int streamId = Integer.parseInt(eventParts[0]);
+            long eventTimestamp = Long.valueOf(eventParts[1]);
+            int eventValue = Integer.valueOf(eventParts[2]);
 
             DistributedChildSlicer<Integer> perStreamSlicer = this.slicerPerStream.get(streamId);
             perStreamSlicer.processElement(perStreamSlicer.castFromObject(eventValue), eventTimestamp);
@@ -144,6 +154,7 @@ public class DistributedChild implements Runnable {
             // If we haven't processed a watermark in watermarkMs milliseconds, process it.
             final long watermarkTimestamp = lastWatermark + this.watermarkMs;
             if (currentEventTime >= watermarkTimestamp) {
+                // System.out.println(this.childIdString("Processing watermark " + watermarkTimestamp));
                 this.processWatermarkedWindows(watermarkTimestamp);
                 lastWatermark = watermarkTimestamp;
             }
@@ -169,7 +180,6 @@ public class DistributedChild implements Runnable {
             boolean finalTrigger = this.streamWindowMerger.processPreAggregate(partialAggregate, windowId);
 
             if (finalTrigger) {
-//                System.out.println(this.forwardIdString("Trigger in merge for " + windowId));
                 AggregateWindow<Integer> finalPreAggregateWindow = this.streamWindowMerger.triggerFinalWindow(windowId);
                 finalPreAggregateWindows.add(finalPreAggregateWindow);
             }
@@ -192,6 +202,7 @@ public class DistributedChild implements Runnable {
             List aggValues = preAggregatedWindow.getAggValues();
             Object partialAggregate = aggValues.isEmpty() ? null : aggValues.get(0);
             byte[] partialAggregateBytes = DistributedUtils.objectToBytes(partialAggregate);
+            //  System.out.println(this.childIdString("Sending to root " + windowId));
 
             // Order:
             // Integer           childId
@@ -199,11 +210,11 @@ public class DistributedChild implements Runnable {
             // Byte[]            raw bytes of partial aggregate
             this.windowPusher.sendMore(String.valueOf(this.childId));
             this.windowPusher.sendMore(DistributedUtils.windowIdToString(windowId));
-            this.windowPusher.send(partialAggregateBytes);
+            this.windowPusher.send(partialAggregateBytes, ZMQ.DONTWAIT);
         }
     }
 
-    private List<Window> getWindowsFromRoot() {
+    private List<Window> registerAtRoot() {
         ZMQ.Socket controlClient = this.context.createSocket(SocketType.REQ);
         controlClient.connect(DistributedUtils.buildTcpUrl(this.rootIp, this.rootControllerPort));
 
@@ -213,6 +224,9 @@ public class DistributedChild implements Runnable {
         String windowString = controlClient.recvStr();
         System.out.println(this.childIdString("Received: " + this.watermarkMs +
                 " [" + windowString.replace("\n", ";") + "]"));
+
+        this.windowPusher = this.context.createSocket(SocketType.PUSH);
+        this.windowPusher.connect(DistributedUtils.buildTcpUrl(this.rootIp, this.rootWindowPort));
 
         return this.createWindowsFromString(windowString);
     }

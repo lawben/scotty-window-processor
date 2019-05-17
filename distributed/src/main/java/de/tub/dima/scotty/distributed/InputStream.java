@@ -41,8 +41,12 @@ public class InputStream<T> implements Runnable {
             System.out.println(this.streamIdString("Start sending data"));
 
             long lastEventTimestamp = this.eventGenerator.generateAndSendEvents(rand, eventSender);
-
+            eventSender.sendMore(DistributedUtils.STREAM_END);
+            eventSender.send(String.valueOf(this.streamId));
             System.out.println(this.streamIdString("Last event timestamp: " + lastEventTimestamp));
+
+            // Allow stream end to be processed before killing the context
+            Thread.sleep(2000);
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);
