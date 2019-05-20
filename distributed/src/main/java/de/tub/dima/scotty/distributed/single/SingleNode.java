@@ -39,7 +39,7 @@ public class SingleNode implements Runnable {
             System.out.println(this.nodeString("Starting single on port " + this.streamPort + " with results to " + this.resultPath));
 
             ZMQ.Socket streamInput = context.createSocket(SocketType.PULL);
-            streamInput.bind(DistributedUtils.buildLocalTcpUrl(this.streamPort));
+            streamInput.bind(DistributedUtils.buildBindingTcpUrl(this.streamPort));
 
             ZMQ.Socket resultPusher = context.createSocket(SocketType.PUSH);
             resultPusher.connect(DistributedUtils.buildIpcUrl(this.resultPath));

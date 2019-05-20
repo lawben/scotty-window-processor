@@ -34,10 +34,11 @@ public class InputStream<T> implements Runnable {
         try (ZContext context = new ZContext()) {
             this.registerAtNode(context);
 
+            Thread.sleep(DistributedChild.STREAM_REGISTER_TIMEOUT_MS * 2);
+
             ZMQ.Socket eventSender = context.createSocket(SocketType.PUSH);
             eventSender.connect(DistributedUtils.buildTcpUrl(this.nodeIp, this.nodePort));
 
-            Thread.sleep(DistributedChild.STREAM_REGISTER_TIMEOUT_MS * 2);
             System.out.println(this.streamIdString("Start sending data"));
 
             long lastEventTimestamp = this.eventGenerator.generateAndSendEvents(rand, eventSender);

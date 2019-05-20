@@ -18,25 +18,35 @@ public class FakeTimeEventGenerator<T> implements EventGenerator<T> {
 
     @Override
     public long generateAndSendEvents(Random rand, ZMQ.Socket eventSender) {
-        int numRecordsProcessed = 0;
+        int numEvents = config.numEventsToSend;
+        int[] eventValues = new int[numEvents];
+        long[] eventTimestamps = new long[numEvents];
+
         long lastEventTimestamp = 0;
-        while (numRecordsProcessed < config.numEventsToSend) {
-            int max = config.maxWaitTimeMillis;
-            int min = config.minWaitTimeMillis;
-            int fakeSleepTime = rand.nextInt((max - min) + 1) + min;
-            long eventTimestamp = lastEventTimestamp + fakeSleepTime;
 
-            T eventValue = config.generatorFunction.apply(rand);
+        int max = config.maxWaitTimeMillis;
+        int min = config.minWaitTimeMillis;
 
-            eventSender.sendMore(String.valueOf(this.streamId));
-            eventSender.sendMore(String.valueOf(eventTimestamp));
-            eventSender.send(DistributedUtils.objectToBytes(eventValue));
-
-            numRecordsProcessed++;
+        // Generate all events
+        System.out.println("[FAKE-GEN] Generating...");
+        for (int eventNum = 0; eventNum < numEvents; eventNum++) {
+            final int fakeSleepTime = rand.nextInt((max - min) + 1) + min;
+            final long eventTimestamp = lastEventTimestamp + fakeSleepTime;
+            final Integer eventValue = (Integer) config.generatorFunction.apply(rand);
+            eventValues[eventNum] = eventValue;
+            eventTimestamps[eventNum] = eventTimestamp;
             lastEventTimestamp = eventTimestamp;
         }
 
-        return lastEventTimestamp;
+        // Send all events
+        System.out.println("[FAKE-GEN] Sending...");
+        final String streamIdString = String.valueOf(this.streamId);
+        for (int eventNum = 0; eventNum < numEvents; eventNum++) {
+            final String msg = streamIdString + ',' + eventTimestamps[eventNum] + ',' + eventValues[eventNum];
+            eventSender.send(msg, ZMQ.DONTWAIT);
+        }
+
+        return eventTimestamps[numEvents - 1];
     }
 }
 

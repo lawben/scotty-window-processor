@@ -64,8 +64,8 @@ public class DistributedUtils {
         return "tcp://" + ip + ":" + port;
     }
 
-    public static String buildLocalTcpUrl(int port) {
-        return buildTcpUrl("0.0.0.0", port);
+    public static String buildBindingTcpUrl(int port) {
+        return buildTcpUrl("*", port);
     }
 
     public static String buildIpcUrl(String path) {
@@ -118,7 +118,7 @@ public class DistributedUtils {
     }
 
     public static List<Long> getRandomSeeds(String[] args, int numStreams, int position) {
-        final List<Long> randomSeeds = new ArrayList<>();
+        final List<Long> randomSeeds = new ArrayList<>(numStreams);
         if (args.length >= position + 1) {
             String seedString = args[position];
             String[] seedStringSplit = seedString.split(",");

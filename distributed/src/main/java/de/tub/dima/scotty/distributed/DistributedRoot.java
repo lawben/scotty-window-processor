@@ -39,7 +39,7 @@ public class DistributedRoot implements Runnable {
 
         this.context = new ZContext();
         this.windowPuller = this.context.createSocket(SocketType.PULL);
-        this.windowPuller.bind(DistributedUtils.buildLocalTcpUrl(this.windowPort));
+        this.windowPuller.bind(DistributedUtils.buildBindingTcpUrl(this.windowPort));
         this.resultPusher = this.context.createSocket(SocketType.PUSH);
         this.resultPusher.connect(DistributedUtils.buildIpcUrl(this.resultPath));
     }
@@ -111,7 +111,7 @@ public class DistributedRoot implements Runnable {
 
     private void waitForChildren(int numChildren) {
         ZMQ.Socket childReceiver = this.context.createSocket(SocketType.REP);
-        childReceiver.bind(DistributedUtils.buildLocalTcpUrl(this.controllerPort));
+        childReceiver.bind(DistributedUtils.buildBindingTcpUrl(this.controllerPort));
 
 //        String[] windowStrings = {"SLIDING,100,50,2"};
         String[] windowStrings = {"TUMBLING,1000,1"};

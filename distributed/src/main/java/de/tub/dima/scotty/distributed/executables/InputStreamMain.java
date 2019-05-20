@@ -34,7 +34,7 @@ public class InputStreamMain {
 
         long startTime = System.currentTimeMillis() + DistributedChild.STREAM_REGISTER_TIMEOUT_MS * 2;
         InputStreamConfig<Integer> config =
-                new InputStreamConfig<>(numEvents, 1, 10, startTime, valueGenerator, randomSeed);
+                new InputStreamConfig<>(numEvents, 1, 5, startTime, valueGenerator, randomSeed);
 
         EventGenerator<Integer> eventGenerator = new ThroughputEventGenerator<>(streamId, config);
 

@@ -19,20 +19,20 @@ public class SleepEventGenerator<T> implements EventGenerator<T> {
 
     @Override
     public long generateAndSendEvents(Random rand, ZMQ.Socket eventSender) throws Exception {
-        int numRecordsProcessed = 0;
         long lastEventTimestamp = 0;
-        long startTime = config.startTimestamp;
+        final long startTime = config.startTimestamp;
         final Function<Random, T> eventGenerator = config.generatorFunction;
-        while (numRecordsProcessed < config.numEventsToSend) {
-            this.doSleep(config.minWaitTimeMillis, config.maxWaitTimeMillis, rand);
+        final int minSleepTime = config.minWaitTimeMillis;
+        final int maxSleepTime = config.maxWaitTimeMillis;
 
-            long eventTimestamp = System.currentTimeMillis() - startTime;
-            Integer eventValue = (Integer) eventGenerator.apply(rand);
+        for (int i = 0; i < config.numEventsToSend; i++) {
+            this.doSleep(minSleepTime, maxSleepTime, rand);
 
-            String msg = String.valueOf(this.streamId) + ',' + eventTimestamp + ',' + eventValue;
+            final long eventTimestamp = System.currentTimeMillis() - startTime;
+            final Integer eventValue = (Integer) eventGenerator.apply(rand);
+            final String msg = String.valueOf(this.streamId) + ',' + eventTimestamp + ',' + eventValue;
             eventSender.send(msg, ZMQ.DONTWAIT);
 
-            numRecordsProcessed++;
             lastEventTimestamp = eventTimestamp;
         }
 

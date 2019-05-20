@@ -78,7 +78,7 @@ public class DistributedChild implements Runnable {
 
     private void registerStreams(final long timeout, final List<Window> windows) {
         final ZMQ.Socket streamReceiver = this.context.createSocket(SocketType.REP);
-        streamReceiver.bind(DistributedUtils.buildLocalTcpUrl(this.streamInputPort + STREAM_REGISTER_PORT_OFFSET));
+        streamReceiver.bind(DistributedUtils.buildBindingTcpUrl(this.streamInputPort + STREAM_REGISTER_PORT_OFFSET));
 
         final ZMQ.Poller streams = this.context.createPoller(1);
         streams.register(streamReceiver, Poller.POLLIN);
@@ -92,7 +92,7 @@ public class DistributedChild implements Runnable {
         while (!Thread.currentThread().isInterrupted()) {
             if (streams.poll(timeout) == 0) {
                 // Timed out --> all streams registered
-                System.out.println("Registered all streams.");
+                System.out.println(this.childIdString("Registered all streams."));
                 this.streamWindowMerger = new DistributedWindowMerger<>(stateFactory, this.numStreams, windows, aggFn);
                 return;
             }
@@ -114,7 +114,7 @@ public class DistributedChild implements Runnable {
 
     private void processStreams() {
         ZMQ.Socket streamInput = this.context.createSocket(SocketType.PULL);
-        streamInput.bind(DistributedUtils.buildLocalTcpUrl(this.streamInputPort));
+        streamInput.bind(DistributedUtils.buildBindingTcpUrl(this.streamInputPort));
         System.out.println(this.childIdString("Waiting for stream data."));
 
         long currentEventTime = 0;

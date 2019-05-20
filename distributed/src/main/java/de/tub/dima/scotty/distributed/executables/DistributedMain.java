@@ -27,8 +27,8 @@ public class DistributedMain {
         final int numStreams = Integer.parseInt(args[5]);
         final int numEvents = Integer.parseInt(args[6]);
 
-        Process tshark = TsharkRunner.startTshark(rootControllerPort, rootWindowPort, streamPort,
-                numChildren, numStreams, numEvents, "dist");
+//        Process tshark = TsharkRunner.startTshark(rootControllerPort, rootWindowPort, streamPort,
+//                numChildren, numStreams, numEvents, "dist", "en0");
 
         // Let tshark start
 //        Thread.sleep(2000);
@@ -40,7 +40,7 @@ public class DistributedMain {
         List<String> seedStrings = randomSeeds.stream().map(String::valueOf).collect(Collectors.toList());
         System.out.println("Using seeds: " + String.join(",", seedStrings));
 
-        if (numChildren > numStreams) {
+        if (numStreams > 0 && numStreams < numChildren) {
             System.err.println("Need at least as many streams as children! "
                     + "Got " + numStreams + ", need at least " + numChildren);
             System.exit(1);
@@ -59,6 +59,6 @@ public class DistributedMain {
 
         rootThread.join();
         System.out.println("Finished streaming.");
-        TsharkRunner.endTshark(tshark);
+//        TsharkRunner.endTshark(tshark);
     }
 }

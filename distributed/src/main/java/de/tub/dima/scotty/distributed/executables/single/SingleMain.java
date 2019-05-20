@@ -28,7 +28,7 @@ public class SingleMain {
         final int numEvents = Integer.parseInt(args[5]);
 
         Process tshark = TsharkRunner.startTshark(rootPort, rootPort, streamPort,
-                numChildren, numStreams, numEvents, "single");
+                numChildren, numStreams, numEvents, "single", "en0");
 
         // Let tshark start
         Thread.sleep(2000);

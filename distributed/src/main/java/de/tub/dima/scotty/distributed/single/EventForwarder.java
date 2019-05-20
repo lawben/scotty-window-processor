@@ -25,7 +25,7 @@ public class EventForwarder implements Runnable {
     public void run() {
         try (ZContext context = new ZContext()) {
             ZMQ.Socket streamInput = context.createSocket(SocketType.PULL);
-            streamInput.bind(DistributedUtils.buildLocalTcpUrl(this.streamInputPort));
+            streamInput.bind(DistributedUtils.buildBindingTcpUrl(this.streamInputPort));
 
             ZMQ.Socket streamOutput = context.createSocket(SocketType.PUSH);
             streamOutput.connect(DistributedUtils.buildTcpUrl(this.rootIp, this.rootPort));
