@@ -58,12 +58,13 @@ public class InputStream<T> implements Runnable {
 
 
     protected void registerAtNode(ZContext context) {
+        System.out.println(this.streamIdString("Registering at node."));
         final ZMQ.Socket nodeRegistrar = context.createSocket(SocketType.REQ);
         nodeRegistrar.connect(DistributedUtils.buildTcpUrl(this.nodeIp, this.nodePort + DistributedChild.STREAM_REGISTER_PORT_OFFSET));
 
         nodeRegistrar.send(String.valueOf(this.streamId));
         nodeRegistrar.recv();
-        System.out.println(this.streamIdString("Registered at node."));
+        System.out.println(this.streamIdString("Registering successful."));
     }
 
     private String streamIdString(String msg) {

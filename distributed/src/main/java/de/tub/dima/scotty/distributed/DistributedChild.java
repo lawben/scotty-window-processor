@@ -29,7 +29,7 @@ public class DistributedChild implements Runnable {
 
     private ZMQ.Socket windowPusher;
     public final static int STREAM_REGISTER_PORT_OFFSET = 100;
-    public final static long STREAM_REGISTER_TIMEOUT_MS = 8 * 1000;
+    public final static long STREAM_REGISTER_TIMEOUT_MS = 10 * 1000;
 
     // Slicing related
     private final Map<Integer, DistributedChildSlicer<Integer>> slicerPerStream;
