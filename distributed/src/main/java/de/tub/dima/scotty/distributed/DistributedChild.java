@@ -125,7 +125,7 @@ public class DistributedChild implements Runnable {
             String streamIdOrStreamEnd = streamInput.recvStr();
             if (streamIdOrStreamEnd.equals(DistributedUtils.STREAM_END)) {
                 int streamId = Integer.valueOf(streamInput.recvStr(ZMQ.DONTWAIT));
-                System.out.println(this.childIdString("Stream end from " + streamId));
+                System.out.println(this.childIdString("Stream end from STREAM-" + streamId));
                 this.streamEnds.add(streamId);
                 if (this.streamEnds.size() == this.numStreams) {
                     System.out.println(this.childIdString("Processed " + numEvents + " events in total."));

@@ -30,7 +30,7 @@ public class InputStreamMain {
     }
 
     public static Thread runInputStream(String nodeIp, int nodePort, int numEvents, int streamId, long randomSeed, boolean isDistributed) {
-        Function<Random, Integer> valueGenerator = (rand) -> rand.nextInt(100);
+        Function<Random, Integer> valueGenerator = (rand) -> 1; //rand.nextInt(100);
 
         long startTime = System.currentTimeMillis() + DistributedChild.STREAM_REGISTER_TIMEOUT_MS * 2;
         InputStreamConfig<Integer> config =
