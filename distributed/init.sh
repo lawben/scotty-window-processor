@@ -7,7 +7,7 @@ sudo apt update
 sudo apt install -y git oracle-java8-jdk maven
 
 cd ~
-HOME_DIR=`PWD`
+HOME_DIR=${PWD}
 git clone https://github.com/lawben/scotty-window-processor.git distributed-scotty
 cd distributed-scotty
 
