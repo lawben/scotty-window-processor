@@ -4,7 +4,7 @@
 # bash -c "$(curl -sL https://raw.githubusercontent.com/lawben/scotty-window-processor/master/distributed/init.sh)"
 
 sudo apt update
-sudo apt install -y git oracle-java8-jdk maven
+sudo apt install -y git openjdk-11-jdk maven
 
 cd ~
 HOME_DIR=${PWD}
