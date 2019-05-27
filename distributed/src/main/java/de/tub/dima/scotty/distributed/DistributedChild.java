@@ -29,7 +29,7 @@ public class DistributedChild implements Runnable {
 
     private ZMQ.Socket windowPusher;
     public final static int STREAM_REGISTER_PORT_OFFSET = 100;
-    public final static long STREAM_REGISTER_TIMEOUT_MS = 8 * 1000;
+    public final static long STREAM_REGISTER_TIMEOUT_MS = 10 * 1000;
 
     // Slicing related
     private final Map<Integer, DistributedChildSlicer<Integer>> slicerPerStream;
@@ -125,7 +125,7 @@ public class DistributedChild implements Runnable {
             String streamIdOrStreamEnd = streamInput.recvStr();
             if (streamIdOrStreamEnd.equals(DistributedUtils.STREAM_END)) {
                 int streamId = Integer.valueOf(streamInput.recvStr(ZMQ.DONTWAIT));
-                System.out.println(this.childIdString("Stream end from " + streamId));
+                System.out.println(this.childIdString("Stream end from STREAM-" + streamId));
                 this.streamEnds.add(streamId);
                 if (this.streamEnds.size() == this.numStreams) {
                     System.out.println(this.childIdString("Processed " + numEvents + " events in total."));

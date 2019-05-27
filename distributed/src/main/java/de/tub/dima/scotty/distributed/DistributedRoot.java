@@ -62,8 +62,9 @@ public class DistributedRoot implements Runnable {
 
             if (childIdOrStreamEnd.equals(DistributedUtils.STREAM_END)) {
                 int childId = Integer.valueOf(this.windowPuller.recvStr(ZMQ.DONTWAIT));
-                System.out.println(this.rootString("Stream end from " + childId));
+                System.out.println(this.rootString("Stream end from CHILD-" + childId));
                 this.childStreamEnds.add(childId);
+                this.windowMerger.removeChild();
                 if (this.childStreamEnds.size() == this.numChildren) {
                     System.out.println(this.rootString("Received all stream ends. Shutting down root..."));
                     this.resultPusher.send(DistributedUtils.STREAM_END);

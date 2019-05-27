@@ -37,14 +37,18 @@ public class InputStream<T> implements Runnable {
             Thread.sleep(DistributedChild.STREAM_REGISTER_TIMEOUT_MS * 2);
 
             ZMQ.Socket eventSender = context.createSocket(SocketType.PUSH);
+            eventSender.setHWM(this.config.numEventsToSend);
             eventSender.connect(DistributedUtils.buildTcpUrl(this.nodeIp, this.nodePort));
 
             System.out.println(this.streamIdString("Start sending data"));
 
+            final long sendingStartTime = System.currentTimeMillis();
             long lastEventTimestamp = this.eventGenerator.generateAndSendEvents(rand, eventSender);
+            final long duration = System.currentTimeMillis() - sendingStartTime;
             eventSender.sendMore(DistributedUtils.STREAM_END);
             eventSender.send(String.valueOf(this.streamId));
-            System.out.println(this.streamIdString("Last event timestamp: " + lastEventTimestamp));
+            System.out.println(this.streamIdString("Last event timestamp: " + lastEventTimestamp +
+                    " (total sending duration: " + duration + "ms)"));
 
             // Allow stream end to be processed before killing the context
             Thread.sleep(2000);
@@ -58,12 +62,13 @@ public class InputStream<T> implements Runnable {
 
 
     protected void registerAtNode(ZContext context) {
+        System.out.println(this.streamIdString("Registering at node."));
         final ZMQ.Socket nodeRegistrar = context.createSocket(SocketType.REQ);
         nodeRegistrar.connect(DistributedUtils.buildTcpUrl(this.nodeIp, this.nodePort + DistributedChild.STREAM_REGISTER_PORT_OFFSET));
 
         nodeRegistrar.send(String.valueOf(this.streamId));
         nodeRegistrar.recv();
-        System.out.println(this.streamIdString("Registered at node."));
+        System.out.println(this.streamIdString("Registering successful."));
     }
 
     private String streamIdString(String msg) {

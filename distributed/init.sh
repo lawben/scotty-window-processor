@@ -3,8 +3,9 @@
 # Use this by calling:
 # bash -c "$(curl -sL https://raw.githubusercontent.com/lawben/scotty-window-processor/master/distributed/init.sh)"
 
+sudo add-apt-repository ppa:wireshark-dev/stable 
 sudo apt update
-sudo apt install -y git openjdk-11-jdk maven
+sudo apt install -y git openjdk-11-jdk maven tshark
 
 cd ~
 HOME_DIR=${PWD}

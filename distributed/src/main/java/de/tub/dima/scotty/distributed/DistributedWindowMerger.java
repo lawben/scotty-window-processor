@@ -17,12 +17,14 @@ import java.util.concurrent.atomic.LongAdder;
 public class DistributedWindowMerger<InputType> extends SlicingWindowOperator<InputType> {
 
     protected final int numChildren;
+    protected int numRemainingChildren;
     protected final Map<WindowAggregateId, LongAdder> receivedWindowPreAggregates = new HashMap<>();
     protected final Map<WindowAggregateId, AggregateState<InputType>> windowAggregates = new HashMap<>();
 
     public DistributedWindowMerger(StateFactory stateFactory, int numChildren, List<Window> windows, AggregateFunction aggFn) {
         super(stateFactory);
         this.numChildren = numChildren;
+        this.numRemainingChildren = this.numChildren;
 
         this.addWindowFunction(aggFn);
         for (Window window : windows) {
@@ -39,8 +41,11 @@ public class DistributedWindowMerger<InputType> extends SlicingWindowOperator<In
         aggWindow.addElement(preAggregate);
 
         LongAdder receivedCounter = receivedWindowPreAggregates.computeIfAbsent(windowAggregateId, k -> new LongAdder());
-        receivedCounter.increment();
-        return receivedCounter.longValue() == numChildren;
+        if (receivedCounter.longValue() == 0) {
+            receivedCounter.add(this.numRemainingChildren);
+        }
+        receivedCounter.decrement();
+        return receivedCounter.longValue() == 0;
     }
 
     public AggregateWindow<InputType> triggerFinalWindow(WindowAggregateId windowId) {
@@ -50,5 +55,9 @@ public class DistributedWindowMerger<InputType> extends SlicingWindowOperator<In
         windowAggregates.remove(windowId);
 
         return finalWindow;
+    }
+
+    public void removeChild() {
+        this.numRemainingChildren--;
     }
 }
