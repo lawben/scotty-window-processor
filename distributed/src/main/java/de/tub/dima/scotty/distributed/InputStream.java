@@ -37,6 +37,7 @@ public class InputStream<T> implements Runnable {
             Thread.sleep(DistributedChild.STREAM_REGISTER_TIMEOUT_MS * 2);
 
             ZMQ.Socket eventSender = context.createSocket(SocketType.PUSH);
+            eventSender.setHWM(this.config.numEventsToSend);
             eventSender.connect(DistributedUtils.buildTcpUrl(this.nodeIp, this.nodePort));
 
             System.out.println(this.streamIdString("Start sending data"));
