@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Usage: ./create-droplets.sh numChildren numStreams
+# Usage: ./create-droplets.sh numChildren numStreams [numEvents]
 
 NUM_CHILDREN=${1:-0}
 NUM_STREAMS=${2:-0}
@@ -24,7 +24,8 @@ function create_init_script {
     local JAVA_ARGS=${@:2}
     cat "$INIT_SCRIPT_FILE" > ${FILE_NAME}
     echo -e "\n" >> ${FILE_NAME}
-    echo "echo \"java -cp \$CLASSPATH de.tub.dima.scotty.distributed.executables.$CLASS_NAME ${JAVA_ARGS}\" > ~/run.sh" >> ${FILE_NAME}
+    echo "echo \"java -cp \$CLASSPATH de.tub.dima.scotty.distributed.executables.$CLASS_NAME ${JAVA_ARGS} &\" > ~/run.sh" >> ${FILE_NAME}
+    echo "echo \"echo \\\$! > /tmp/RUN_PID\" >> ~/run.sh" >> ${FILE_NAME}
     echo "chmod +x ~/run.sh" >> ${FILE_NAME}
     echo ${FILE_NAME}
 }
@@ -33,21 +34,19 @@ function creat_droplet {
     local TAG_NAME="$1"
     local SCRIPT="$2"
     local DROPLET_NAME="$3"
-    local WAIT="$4"
-    local ITERATION=${5:-0}
+    local ITERATION=${4:-0}
     local NO_HEADER=false
     if [[ ${ITERATION} -gt 1 ]]; then
         NO_HEADER=true
     fi
 
     doctl compute droplet create ${DROPLET_NAME} --image ubuntu-18-04-x64 \
-                                      --size s-2vcpu-2gb \
+                                      --size s-1vcpu-1gb \
                                       --region fra1 \
                                       --tag-name "$TAG_NAME" \
                                       --ssh-keys "$SSH_KEY" \
                                       --user-data-file "$SCRIPT" \
                                       --format="ID,Name" \
-                                      --wait=${WAIT} \
                                       --no-header=${NO_HEADER}
 }
 
@@ -58,17 +57,23 @@ function get_ips {
 
 echo -e "Creating root node\n=================="
 ROOT_SETUP_SCRIPT=$(create_init_script DistributedRootMain ${ROOT_CONTROL_PORT} ${ROOT_WINDOW_PORT} /tmp/scotty-res ${NUM_CHILDREN})
-creat_droplet "$ROOT_TAG" "$ROOT_SETUP_SCRIPT" "root" true
+creat_droplet "$ROOT_TAG" "$ROOT_SETUP_SCRIPT" "root"
 echo
 
 if [[ "$NUM_CHILDREN" -gt "0" ]]; then
     echo -e "Creating child nodes\n===================="
 
+    echo "Waiting for root IP..."
     ROOT_IP=$(get_ips ${ROOT_TAG})
+    while [[ ${ROOT_IP} == "" ]]; do
+        sleep 2
+        ROOT_IP=$(get_ips ${ROOT_TAG})
+    done
+    echo
 
     for i in $(seq ${NUM_CHILDREN}); do
         CHILD_SETUP_SCRIPT=$(create_init_script DistributedChildMain ${ROOT_IP} ${ROOT_CONTROL_PORT} ${ROOT_WINDOW_PORT} ${CHILD_PORT} "$i")
-        creat_droplet "$CHILD_TAG" "$CHILD_SETUP_SCRIPT" "child-$i" false ${i}
+        creat_droplet "$CHILD_TAG" "$CHILD_SETUP_SCRIPT" "child-$i" ${i}
     done
     echo
 fi
@@ -78,7 +83,7 @@ if [[ "$NUM_STREAMS" -gt "0" ]]; then
     while [[ ${NUM_READY_CHILDREN} -lt ${NUM_CHILDREN} ]]; do
         let "difference = ${NUM_CHILDREN} - ${NUM_READY_CHILDREN}"
         echo -ne "\rWaiting for $difference more child node(s) to get an IP..."
-        sleep 5
+        sleep 3
         NUM_READY_CHILDREN=$(get_ips "$CHILD_TAG" | wc -l)
     done
     echo
@@ -92,6 +97,10 @@ if [[ "$NUM_STREAMS" -gt "0" ]]; then
         let "child_idx = ${i} % ${NUM_CHILDREN}"
         let "stream_id = ${i} + 1"
         STREAM_SETUP_SCRIPT=$(create_init_script InputStreamMain ${CHILD_IPS[$child_idx]} ${CHILD_PORT} ${NUM_EVENTS} ${stream_id})
-        creat_droplet "$STREAM_TAG" "$STREAM_SETUP_SCRIPT" "stream-$stream_id" false ${stream_id}
+        creat_droplet "$STREAM_TAG" "$STREAM_SETUP_SCRIPT" "stream-$stream_id" ${stream_id}
     done
 fi
+
+echo
+let "total_num = ${NUM_CHILDREN} + ${NUM_STREAMS} + 1"
+echo "Created $total_num droplets."
