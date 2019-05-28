@@ -4,13 +4,22 @@ NUM_EXPECTED_DROPLETS=${1}
 DELETE_AFTER=${2:-""}
 
 KNOWN_HOSTS_FILE=/tmp/known_hosts
-RUN_FILES_DIR=$(mktemp -d)
 
-echo "Writing logs to $RUN_FILES_DIR"
+THIS_FILE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+BASE_DIR=$(cd "$THIS_FILE_DIR/../.." && pwd)
+RUN_FILES_DIR="$BASE_DIR/benchmark-runs/$(date +"%Y-%d-%m_%Hh%Mm%Ss")"
 
+function get_droplet_list {
+    local FORMAT=${1}
+    doctl compute droplet list --format="$FORMAT" --no-header
+}
 
 function get_all_ips {
-    doctl compute droplet list --format="PublicIPv4" --no-header
+    get_droplet_list "PublicIPv4"
+}
+
+function get_all_names {
+    get_droplet_list "Name"
 }
 
 function ssh_cmd {
@@ -20,7 +29,9 @@ function ssh_cmd {
 }
 
 function run_droplet {
-    ssh_cmd ${1} "~/run.sh" > "$RUN_FILES_DIR/node-$ip.log"
+    local IP=${1}
+    local NAME=${2}
+    ssh_cmd ${IP} "~/run.sh" > "$RUN_FILES_DIR/$NAME.log"
 }
 
 function check_ready {
@@ -29,6 +40,13 @@ function check_ready {
         echo "ready"
     fi
 }
+
+#########################
+# ACTUAL CODE THAT IS RUN
+#########################
+
+mkdir -p ${RUN_FILES_DIR}
+echo "Writing logs to $RUN_FILES_DIR"
 
 echo "Getting IPs..."
 ALL_IPS=($(get_all_ips))
@@ -69,15 +87,23 @@ while [[ ${#READY_IPS[@]} -lt ${NUM_EXPECTED_DROPLETS} ]]; do
             READY_IPS+=(${ip})
         fi
     done
-    sleep 10
+    if [[ ${#READY_IPS[@]} -lt ${NUM_EXPECTED_DROPLETS} ]]; then
+        sleep 10
+    fi
 done
 echo -e "\n"
 
 
 echo "Setup done. Starting \`run.sh\` on all nodes."
-for ip in ${ALL_IPS[@]}; do
-    run_droplet ${ip} &
+
+ALL_NAMES=($(get_all_names))
+for i in ${!ALL_IPS[@]}; do
+    run_droplet ${ALL_IPS[$i]} ${ALL_NAMES[$i]} &
 done
+
+echo
+echo "To view root logs:"
+echo "tail -F $RUN_FILES_DIR/root.log"
 
 echo
 read -n 1 -p "Press [ENTER] to end script..." dummy
@@ -89,6 +115,13 @@ for ip in ${ALL_IPS[@]}; do
 done
 
 echo "Killed all PIDs."
+
+if [[ ${DELETE_AFTER} == "" ]]; then
+    read -p "Delete all droplets? (y/n) " delete_droplets
+    if [[ ${delete_droplets} == "y" ]]; then
+        DELETE_AFTER="delete"
+    fi
+fi
 
 if [[ ${DELETE_AFTER} == "delete" ]]; then
     echo "Deleting all droplets..."
