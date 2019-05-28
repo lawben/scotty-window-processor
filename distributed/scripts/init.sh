@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 
 # Use this by calling:
-# bash -c "$(curl -sL https://raw.githubusercontent.com/lawben/scotty-window-processor/master/distributed/init.sh)"
+# bash -c "$(curl -sL https://raw.githubusercontent.com/lawben/scotty-window-processor/master/distributed/scripts/init.sh)"
 
-sudo add-apt-repository ppa:wireshark-dev/stable 
 sudo apt update
-sudo apt install -y git openjdk-11-jdk maven tshark
+sudo apt install -y git openjdk-11-jdk maven
 
 cd ~
 HOME_DIR=${PWD}
@@ -16,4 +15,3 @@ mvn clean install -pl :distributed -am
 
 export CLASSPATH="$HOME_DIR/distributed-scotty:$HOME_DIR/distributed-scotty/distributed/target/classes:$HOME_DIR/distributed-scotty/core/target/classes:$HOME_DIR/distributed-scotty/state/target/classes:$HOME_DIR/distributed-scotty/slicing/target/classes:$HOME_DIR/.m2/repository/org/jetbrains/annotations/17.0.0/annotations-17.0.0.jar:$HOME_DIR/.m2/repository/org/zeromq/jeromq/0.5.1/jeromq-0.5.1.jar:$HOME_DIR/.m2/repository/eu/neilalexander/jnacl/1.0.0/jnacl-1.0.0.jar:$HOME_DIR/.m2/repository/org/slf4j/slf4j-api/1.7.16/slf4j-api-1.7.16.jar"
 echo "export CLASSPATH=$CLASSPATH" >> ${HOME_DIR}/.bashrc
-source "$HOME_DIR/.bashrc"
