@@ -33,7 +33,6 @@
     <modules>
         <module>core</module>
         <module>slicing</module>
-        <module>distributed</module>
         <module>benchmark</module>
         <module>state</module>
         <module>flink-connector</module>
