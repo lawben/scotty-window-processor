@@ -10,14 +10,20 @@ public class SessionWindow implements ForwardContextAware {
      * The session window gap
      */
     private final long gap;
+    private final long windowId;
 
     /**
      * @param measure WindowMeasurement
      * @param gap     Session Gap
      */
     public SessionWindow(WindowMeasure measure, long gap) {
+        this(measure, gap, -1);
+    }
+
+    public SessionWindow(WindowMeasure measure, long gap, long windowId) {
         this.measure = measure;
         this.gap = gap;
+        this.windowId = windowId;
     }
 
     public long getGap() {
@@ -27,6 +33,11 @@ public class SessionWindow implements ForwardContextAware {
     @Override
     public WindowMeasure getWindowMeasure() {
         return measure;
+    }
+
+    @Override
+    public long getWindowId() {
+        return this.windowId;
     }
 
     @Override
@@ -107,7 +118,9 @@ public class SessionWindow implements ForwardContextAware {
         public void triggerWindows(WindowCollector aggregateWindows, long lastWatermark, long currentWatermark) {
             ActiveWindow session = getWindow(0);
             while (session.getEnd() + gap < currentWatermark) {
-                aggregateWindows.trigger(session.getStart(), session.getEnd() + gap, measure);
+                long windowEnd = session.getEnd() + gap;
+                WindowAggregateId windowAggregateId = new WindowAggregateId(windowId, session.getStart(), windowEnd);
+                aggregateWindows.trigger(windowAggregateId, measure);
                 removeWindow(0);
                 if (hasActiveWindows())
                     return;

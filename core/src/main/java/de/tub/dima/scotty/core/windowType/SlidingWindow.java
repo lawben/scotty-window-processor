@@ -63,8 +63,7 @@ public class SlidingWindow implements ContextFreeWindow {
             if (windowStart >= 0 && windowStart + size <= currentWatermark + 1) {
                 long windowEnd = windowStart + size;
                 WindowAggregateId windowAggregateId = new WindowAggregateId(this.getWindowId(), windowStart, windowEnd);
-                collector.setWindowAggregateId(windowAggregateId);
-                collector.trigger(windowStart, windowEnd, measure);
+                collector.trigger(windowAggregateId, measure);
             }
         }
     }

@@ -1,9 +1,8 @@
 package de.tub.dima.scotty.core;
 
-import de.tub.dima.scotty.core.windowType.*;
+import de.tub.dima.scotty.core.windowType.WindowMeasure;
 
 public interface WindowCollector {
 
-    public void trigger(long start, long end, WindowMeasure measure);
-    public void setWindowAggregateId(WindowAggregateId windowId);
+    void trigger(WindowAggregateId windowAggregateId, WindowMeasure measure);
 }

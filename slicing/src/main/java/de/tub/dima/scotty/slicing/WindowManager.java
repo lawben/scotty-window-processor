@@ -187,18 +187,15 @@ public class WindowManager {
     public class AggregationWindowCollector implements WindowCollector, Iterable<AggregateWindow> {
 
         private final List<AggregateWindow> aggregationStores;
-        private WindowAggregateId windowAggregateId;
 
-
-        public void trigger(long start, long end, WindowMeasure measure) {
+        @Override
+        public void trigger(WindowAggregateId windowAggregateId, WindowMeasure measure) {
+            final long start = windowAggregateId.getWindowStartTimestamp();
+            final long end = windowAggregateId.getWindowEndTimestamp();
             AggregateWindowState aggWindow = new AggregateWindowState(start, end, measure, stateFactory, windowFunctions, windowAggregateId);
             this.aggregationStores.add(aggWindow);
         }
 
-        @Override
-        public void setWindowAggregateId(WindowAggregateId windowId) {
-            this.windowAggregateId = windowId;
-        }
 
         public AggregationWindowCollector() {
             this.aggregationStores = new ArrayList<>();
