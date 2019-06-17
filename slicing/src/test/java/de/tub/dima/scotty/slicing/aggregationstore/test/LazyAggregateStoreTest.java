@@ -1,17 +1,23 @@
 package de.tub.dima.scotty.slicing.aggregationstore.test;
 
 
-import de.tub.dima.scotty.core.windowFunction.*;
-import de.tub.dima.scotty.core.windowType.*;
-import de.tub.dima.scotty.slicing.*;
-import de.tub.dima.scotty.slicing.aggregationstore.*;
-import de.tub.dima.scotty.slicing.slice.*;
-import de.tub.dima.scotty.slicing.state.*;
-import de.tub.dima.scotty.state.*;
-import static org.junit.Assert.*;
-import org.junit.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
-import java.util.*;
+import de.tub.dima.scotty.core.WindowAggregateId;
+import de.tub.dima.scotty.core.windowFunction.ReduceAggregateFunction;
+import de.tub.dima.scotty.core.windowType.WindowMeasure;
+import de.tub.dima.scotty.slicing.WindowManager;
+import de.tub.dima.scotty.slicing.aggregationstore.AggregationStore;
+import de.tub.dima.scotty.slicing.aggregationstore.LazyAggregateStore;
+import de.tub.dima.scotty.slicing.slice.Slice;
+import de.tub.dima.scotty.slicing.slice.SliceFactory;
+import de.tub.dima.scotty.slicing.state.AggregateWindowState;
+import de.tub.dima.scotty.state.StateFactory;
+import java.util.ArrayList;
+import java.util.List;
+import org.junit.Before;
+import org.junit.Test;
 
 public class LazyAggregateStoreTest {
 
@@ -114,10 +120,8 @@ public class LazyAggregateStoreTest {
 
 
         List<AggregateWindowState> window = new ArrayList<>();
-        window.add(new AggregateWindowState(10, 40, WindowMeasure.Time, stateFactory, windowManager.getAggregations(),
-                null));
-        window.add(new AggregateWindowState(10, 20, WindowMeasure.Time, stateFactory, windowManager.getAggregations(),
-                null));
+        window.add(new AggregateWindowState(WindowMeasure.Time, stateFactory, windowManager.getAggregation(), new WindowAggregateId(0, 10, 40)));
+        window.add(new AggregateWindowState(WindowMeasure.Time, stateFactory, windowManager.getAggregation(), new WindowAggregateId(0, 10, 20)));
 
 
     }

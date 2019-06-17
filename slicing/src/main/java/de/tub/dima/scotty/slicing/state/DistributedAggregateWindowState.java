@@ -2,6 +2,7 @@ package de.tub.dima.scotty.slicing.state;
 
 import de.tub.dima.scotty.core.AggregateWindow;
 import de.tub.dima.scotty.core.WindowAggregateId;
+import de.tub.dima.scotty.core.windowFunction.AggregateFunction;
 import de.tub.dima.scotty.core.windowType.WindowMeasure;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,5 +47,10 @@ public class DistributedAggregateWindowState<AggregateType> implements Aggregate
     @Override
     public WindowAggregateId getWindowAggregateId() {
         return this.windowId;
+    }
+
+    @Override
+    public AggregateFunction getAggregateFunction() {
+        return this.windowState.getAggregateFunction();
     }
 }

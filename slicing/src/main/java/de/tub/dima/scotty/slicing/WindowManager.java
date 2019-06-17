@@ -25,7 +25,7 @@ public class WindowManager {
     private long maxFixedWindowSize = 0;
     private final List<ContextFreeWindow> contextFreeWindows = new ArrayList<>();
     private final List<WindowContext> contextAwareWindows = new ArrayList<>();
-    private final List<AggregateFunction> windowFunctions = new ArrayList<>();
+    private AggregateFunction windowFunction = null;
     private long lastWatermark = -1;
     private boolean hasTimeMeasure;
     private long currentCount = 0;
@@ -136,7 +136,7 @@ public class WindowManager {
     }
 
     public <InputType, Agg, OutputType> void addAggregation(AggregateFunction<InputType, Agg, OutputType> windowFunction) {
-        windowFunctions.add(windowFunction);
+        this.windowFunction = windowFunction;
     }
 
     public boolean hasContextAwareWindow() {
@@ -160,8 +160,8 @@ public class WindowManager {
         return contextFreeWindows;
     }
 
-    public List<AggregateFunction> getAggregations() {
-        return Collections.unmodifiableList(windowFunctions);
+    public AggregateFunction getAggregation() {
+        return windowFunction;
     }
 
     public List<? extends WindowContext> getContextAwareWindows() {
@@ -192,7 +192,7 @@ public class WindowManager {
         public void trigger(WindowAggregateId windowAggregateId, WindowMeasure measure) {
             final long start = windowAggregateId.getWindowStartTimestamp();
             final long end = windowAggregateId.getWindowEndTimestamp();
-            AggregateWindowState aggWindow = new AggregateWindowState(start, end, measure, stateFactory, windowFunctions, windowAggregateId);
+            AggregateWindowState aggWindow = new AggregateWindowState(measure, stateFactory, windowFunction, windowAggregateId);
             this.aggregationStores.add(aggWindow);
         }
 
