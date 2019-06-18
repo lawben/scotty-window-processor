@@ -1,5 +1,6 @@
 package de.tub.dima.scotty.core;
 
+import de.tub.dima.scotty.core.windowFunction.AggregateFunction;
 import de.tub.dima.scotty.core.windowType.*;
 
 import java.io.*;
@@ -19,4 +20,6 @@ public interface AggregateWindow<T> extends Serializable {
     public boolean hasValue();
 
     WindowAggregateId getWindowAggregateId();
+
+    List<AggregateFunction> getAggregateFunctions();
 }

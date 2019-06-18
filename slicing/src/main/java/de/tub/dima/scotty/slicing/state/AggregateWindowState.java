@@ -15,6 +15,7 @@ public class AggregateWindowState implements AggregateWindow {
     private final WindowMeasure measure;
     private final AggregateState windowState;
     private final WindowAggregateId windowAggregateId;
+    private final List<AggregateFunction> aggregateFunctions;
 
     public AggregateWindowState(long startTs, long endTs, WindowMeasure measure, StateFactory stateFactory,
             List<AggregateFunction> windowFunctionList, WindowAggregateId windowAggregateId) {
@@ -23,6 +24,7 @@ public class AggregateWindowState implements AggregateWindow {
         this.windowState = new AggregateState(stateFactory, windowFunctionList);
         this.measure = measure;
         this.windowAggregateId = windowAggregateId;
+        this.aggregateFunctions = windowFunctionList;
     }
 
     public boolean containsSlice(Slice currentSlice) {
@@ -60,11 +62,15 @@ public class AggregateWindowState implements AggregateWindow {
         this.windowState.merge(aggregationState);
     }
 
+    @Override
     public WindowMeasure getMeasure() {
         return measure;
     }
 
-
+    @Override
+    public List<AggregateFunction> getAggregateFunctions() {
+        return this.aggregateFunctions;
+    }
 
     @Override
     public boolean equals(Object o) {
