@@ -11,7 +11,7 @@ public class EagerSlice<InputType, ValueType> extends AbstractSlice<InputType, V
 
     public EagerSlice(StateFactory stateFactory, WindowManager windowManager, long startTs, long endTs, long startC, long endC, Type type) {
         super(startTs, endTs,startC, endC, type);
-        this.state = new AggregateState<InputType>(stateFactory, windowManager.getAggregation(), null);
+        this.state = new AggregateState<InputType>(stateFactory, windowManager.getAggregations(), null);
     }
 
     @Override

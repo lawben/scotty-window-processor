@@ -16,7 +16,7 @@ public class LazySlice<InputType, ValueType> extends AbstractSlice<InputType, Va
     public LazySlice(StateFactory stateFactory, WindowManager windowManager, long startTs, long endTs, long startC, long endC, Type type) {
         super(startTs, endTs, startC, endC, type);
         this.records = stateFactory.createSetState();
-        this.state = new AggregateState<>(stateFactory, windowManager.getAggregation(), this.records);
+        this.state = new AggregateState<>(stateFactory, windowManager.getAggregations(), this.records);
     }
 
     @Override

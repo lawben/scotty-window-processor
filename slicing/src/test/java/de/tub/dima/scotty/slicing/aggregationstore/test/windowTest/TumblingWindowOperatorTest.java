@@ -209,6 +209,7 @@ public class TumblingWindowOperatorTest {
     @Test
     public void outOfOrderOrderTestCount2() {
         slicingWindowOperator.addWindowFunction((ReduceAggregateFunction<Integer>) (currentAggregate, element) -> currentAggregate + element);
+        slicingWindowOperator.addWindowFunction((ReduceAggregateFunction<Integer>) (currentAggregate, element) -> currentAggregate - element);
         slicingWindowOperator.addWindowAssigner(new TumblingWindow(WindowMeasure.Count, 3));
         slicingWindowOperator.addWindowAssigner(new TumblingWindow(WindowMeasure.Count, 5));
         slicingWindowOperator.processElement(1, 1);

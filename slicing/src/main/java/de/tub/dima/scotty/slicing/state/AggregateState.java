@@ -10,16 +10,16 @@ import java.util.*;
 public class AggregateState<InputType> implements Serializable {
 
     private final List<AggregateValueState<InputType,Object,Object>> aggregateValueStates;
-    private final AggregateFunction aggregateFunction;
 
-    public AggregateState(StateFactory stateFactory, AggregateFunction aggregateFunction) {
-        this(stateFactory, aggregateFunction, null);
+    public AggregateState(StateFactory stateFactory, List<AggregateFunction> windowFunctions) {
+        this(stateFactory, windowFunctions, null);
     }
 
-    public AggregateState(StateFactory stateFactory, AggregateFunction aggregateFunction, SetState<StreamRecord<InputType>> records) {
-        this.aggregateFunction = aggregateFunction;
+    public AggregateState(StateFactory stateFactory, List<AggregateFunction> windowFunctions, SetState<StreamRecord<InputType>> records) {
         this.aggregateValueStates = new ArrayList<>();
-        this.aggregateValueStates.add(new AggregateValueState<>(stateFactory.createValueState(), aggregateFunction, records));
+        for (int i = 0; i < windowFunctions.size(); i++) {
+            this.aggregateValueStates.add(new AggregateValueState<>(stateFactory.createValueState(), windowFunctions.get(i), records));
+        }
     }
 
     public void addElement(InputType state) {
@@ -69,10 +69,6 @@ public class AggregateState<InputType> implements Serializable {
                 objectList.add(valueState.getValue());
         }
         return objectList;
-    }
-
-    public AggregateFunction getAggregateFunction() {
-        return this.aggregateFunction;
     }
 
     @Override
