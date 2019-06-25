@@ -1,12 +1,14 @@
 package de.tub.dima.scotty.slicing.state;
 
-import de.tub.dima.scotty.core.*;
-import de.tub.dima.scotty.core.windowFunction.*;
-import de.tub.dima.scotty.core.windowType.*;
-import de.tub.dima.scotty.slicing.slice.*;
-import de.tub.dima.scotty.state.*;
-
-import java.util.*;
+import de.tub.dima.scotty.core.AggregateWindow;
+import de.tub.dima.scotty.core.WindowAggregateId;
+import de.tub.dima.scotty.core.windowFunction.AggregateFunction;
+import de.tub.dima.scotty.core.windowType.WindowMeasure;
+import de.tub.dima.scotty.slicing.slice.Slice;
+import de.tub.dima.scotty.state.StateFactory;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 public class AggregateWindowState implements AggregateWindow {
 
@@ -16,6 +18,7 @@ public class AggregateWindowState implements AggregateWindow {
     private final AggregateState windowState;
     private final WindowAggregateId windowAggregateId;
     private final List<AggregateFunction> aggregateFunctions;
+    private final List<Slice> slices;
 
     public AggregateWindowState(long startTs, long endTs, WindowMeasure measure, StateFactory stateFactory,
             List<AggregateFunction> windowFunctionList, WindowAggregateId windowAggregateId) {
@@ -25,6 +28,7 @@ public class AggregateWindowState implements AggregateWindow {
         this.measure = measure;
         this.windowAggregateId = windowAggregateId;
         this.aggregateFunctions = windowFunctionList;
+        this.slices = new ArrayList<>();
     }
 
     public boolean containsSlice(Slice currentSlice) {
@@ -60,6 +64,10 @@ public class AggregateWindowState implements AggregateWindow {
 
     public void addState(AggregateState aggregationState) {
         this.windowState.merge(aggregationState);
+    }
+
+    public void addSlice(Slice slice) {
+        this.slices.add(slice);
     }
 
     @Override

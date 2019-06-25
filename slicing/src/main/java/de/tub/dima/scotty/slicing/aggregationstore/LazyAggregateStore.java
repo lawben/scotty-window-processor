@@ -1,15 +1,10 @@
 package de.tub.dima.scotty.slicing.aggregationstore;
 
-import de.tub.dima.scotty.core.*;
-import de.tub.dima.scotty.slicing.*;
-import de.tub.dima.scotty.slicing.aggregationstore.*;
+import de.tub.dima.scotty.core.AggregateWindow;
+import de.tub.dima.scotty.slicing.WindowManager;
 import de.tub.dima.scotty.slicing.slice.Slice;
 import de.tub.dima.scotty.slicing.state.AggregateWindowState;
-import de.tub.dima.scotty.slicing.state.*;
-import de.tub.dima.scotty.slicing.state.AggregateWindowState;
-
 import java.util.ArrayList;
-import java.util.List;
 
 /**
  * A lazy in memory aggregation store implementation.
@@ -81,7 +76,6 @@ public class LazyAggregateStore<InputType> implements AggregationStore<InputType
 
     @Override
     public void aggregate(WindowManager.AggregationWindowCollector aggregateWindows, long minTs, long maxTs, long minCount, long maxCount) {
-
         // start index = 0 || minTS
         int startIndex = Math.max(findSliceIndexByTimestamp(minTs),0);
         startIndex = Math.min(startIndex, findSliceIndexByCount(minCount));
@@ -95,19 +89,10 @@ public class LazyAggregateStore<InputType> implements AggregationStore<InputType
                 AggregateWindowState ws = (AggregateWindowState) window;
                 if(ws.containsSlice(currentSlice)){
                     ws.addState(currentSlice.getAggState());
+                    ws.addSlice(currentSlice);
                 }
             }
         }
-
-        //Slice currentSlice = getCurrentSlice();
-        //for (AggregateWindow window : aggregateWindows) {
-        //    AggregateWindowState ws = (AggregateWindowState) window;
-        //    if (ws.getTEnd() > currentSlice.getTStart()) {
-        //        ws.addState(currentSlice.getAggState());
-        //    }
-        //}
-        //System.out.println(this.slices.size());
-
     }
 
     @Override
