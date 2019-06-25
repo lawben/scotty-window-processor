@@ -70,6 +70,10 @@ public class AggregateWindowState implements AggregateWindow {
         this.slices.add(slice);
     }
 
+    public List<Slice> getSlices() {
+        return slices;
+    }
+
     @Override
     public WindowMeasure getMeasure() {
         return measure;
