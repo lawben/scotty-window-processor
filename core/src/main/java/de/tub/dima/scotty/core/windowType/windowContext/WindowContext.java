@@ -13,7 +13,7 @@ public abstract class WindowContext<Tuple> implements Serializable {
     private final ArrayList<ActiveWindow> activeWindows = new ArrayList<>();
 
     public final boolean hasActiveWindows() {
-        return activeWindows.isEmpty();
+        return !activeWindows.isEmpty();
     }
 
     public final ActiveWindow addNewWindow(int i, long start, long end){
