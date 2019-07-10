@@ -50,7 +50,7 @@ public class SessionWindow implements ForwardContextAware {
         @Override
         public ActiveWindow updateContext(Object tuple, long position) {
 
-            if (hasActiveWindows()) {
+            if (!hasActiveWindows()) {
                 addNewWindow(0, position, position);
                 return getWindow(0);
             }
