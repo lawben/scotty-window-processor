@@ -46,5 +46,8 @@ public class LazySlice<InputType, ValueType> extends AbstractSlice<InputType, Va
         return state;
     }
 
-
+    public SetState<StreamRecord<InputType>> getRecords() {
+        records.
+        return records;
+    }
 }
