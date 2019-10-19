@@ -104,6 +104,9 @@ public class WindowManager {
                 window.triggerWindows(windowCollector, lastWatermark, watermarkTs);
             else if (window.getWindowMeasure() == Count) {
                 int sliceIndex = this.aggregationStore.findSliceIndexByTimestamp(watermarkTs);
+                if (sliceIndex == -1) {
+                    continue;
+                }
                 Slice slice = this.aggregationStore.getSlice(sliceIndex);
                 if (slice.getTLast() >= watermarkTs)
                     slice = this.aggregationStore.getSlice(sliceIndex - 1);
