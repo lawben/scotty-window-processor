@@ -108,8 +108,12 @@ public class WindowManager {
                     continue;
                 }
                 Slice slice = this.aggregationStore.getSlice(sliceIndex);
-                if (slice.getTLast() >= watermarkTs)
+                if (slice.getTLast() >= watermarkTs) {
+                    if (sliceIndex == 0) {
+                        continue;
+                    }
                     slice = this.aggregationStore.getSlice(sliceIndex - 1);
+                }
                 long cend = slice.getCLast();
                 window.triggerWindows(windowCollector, lastCount, cend + 1);
             }
