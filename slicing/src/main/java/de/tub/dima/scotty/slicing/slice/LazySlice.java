@@ -34,10 +34,13 @@ public class LazySlice<InputType, ValueType> extends AbstractSlice<InputType, Va
 
     public StreamRecord<InputType> dropLastElement() {
         StreamRecord<InputType> dropRecord = records.dropLast();
-        StreamRecord<InputType> currentLast = records.getLast();
-        this.setCLast(this.getCLast()-1);
-        this.setTLast(currentLast.ts);
         this.state.removeElement(dropRecord);
+        this.setCLast(this.getCLast()-1);
+
+        if (!records.isEmpty()) {
+            StreamRecord<InputType> currentLast = records.getLast();
+            this.setTLast(currentLast.ts);
+        }
         return dropRecord;
     }
 
