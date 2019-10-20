@@ -73,7 +73,7 @@ public class WindowManager {
             this.aggregationStore.aggregate(windows, minTs, maxTs, minCount, maxCount);
         }
         this.lastWatermark = watermarkTs;
-        this.lastCount = maxCount;
+        this.lastCount = Math.max(maxCount, this.lastCount);
         clearAfterWatermark(watermarkTs - maxLateness);
         return windows.aggregationStores;
     }

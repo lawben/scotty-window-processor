@@ -73,6 +73,7 @@ public class SliceManager<InputType> {
             // updateSlices(windowStarts);
 
             int indexOfSlice = this.aggregationStore.findSliceIndexByTimestamp(ts);
+            if (indexOfSlice == -1) indexOfSlice = 0;
             this.aggregationStore.insertValueToSlice(indexOfSlice, element, ts);
             if(this.windowManager.hasCountMeasure()){
                 // shift count in slices
