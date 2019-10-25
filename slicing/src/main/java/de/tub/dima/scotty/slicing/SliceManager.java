@@ -134,6 +134,9 @@ public class SliceManager<InputType> {
             if (mod instanceof AddModification) {
                 long newWindowEdge = ((AddModification) mod).post;
                 int sliceIndex = this.aggregationStore.findSliceIndexByTimestamp(newWindowEdge);
+                if (sliceIndex == -1) {
+                    return;
+                }
                 Slice slice = this.aggregationStore.getSlice(sliceIndex);
                 if(slice.getTStart() != newWindowEdge && slice.getTEnd() != newWindowEdge ){
                     splitSlice(sliceIndex, ((AddModification) mod).post);
